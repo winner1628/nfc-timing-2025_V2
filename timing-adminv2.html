@@ -10,8 +10,8 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-      background: white; /* 更改為白色背景 */
-      color: #333; /* 更改為黑色文字 */
+      background: #ffffff; /* 改为白色背景 */
+      color: #000000; /* 改为黑色文字 */
       padding: 20px; 
     }
     .container { max-width: 1200px; margin: 0 auto; }
@@ -27,39 +27,25 @@
     th, td { padding: 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
     th { background: #f1f5f9; font-weight: bold; }
     .gold { background: #fef3c7; } .silver { background: #e0f2fe; } .bronze { background: #fed7aa; }
-    #log { background: #f8f9fa; padding: 20px; border-radius: 12px; max-height: 200px; overflow-y: auto; font-family: monospace; }
+    #log { background: #f8f9fa; padding: 20px; border-radius: 12px; max-height: 200px; overflow-y: auto; font-family: monospace; color: #000000; }
     .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
     .stat-card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
     .stat-number { font-size: 36px; font-weight: bold; color: #3b82f6; }
     .stat-label { color: #64748b; margin-top: 8px; }
     .chart-container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 24px; width: 25%; margin-left: auto; margin-right: auto; }
     
-    /* 頁面導航樣式 */
-    .nav {
-      display: flex;
-      gap: 10px;
-      margin: 20px 0;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #eee;
-    }
-    .nav-btn {
-      padding: 8px 16px;
-      background: #f5f5f5;
-      color: #333;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .nav-btn.active {
-      background: #667eea;
-      color: white;
-    }
-    .page {
-      display: none;
-    }
-    .page.active {
-      display: block;
-    }
+    /* 导航样式 */
+    .navigation { margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+    .nav-btn { padding: 8px 16px; margin-right: 10px; background: #f1f5f9; color: #000000; }
+    .nav-btn.active { background: #3b82f6; color: white; }
+    
+    /* 页面容器样式 */
+    .page { display: none; }
+    .page.active { display: block; }
+    
+    /* 筛选器样式 */
+    .filters { margin: 16px 0; padding: 16px; background: #f8fafc; border-radius: 8px; }
+    select, .filter-input { padding: 8px 12px; margin-right: 12px; border: 1px solid #e2e8f0; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -67,8 +53,8 @@
     <div class="header">
       <h1>📊 NFC 跑手計時後台</h1>
       <div>
-        <input id="adminUrl" placeholder="https://wceywyxwyygbwfodjdpp.supabase.co" value="YOUR_SUPABASE_URL" style="display: none;">
-        <input id="adminKey" placeholder="sb_publishable_BWBxXzGk8bRGql3VbkCqbA_IZOfH5rc" type="password" value="YOUR_SUPABASE_KEY" style="display: none;">
+        <input id="adminUrl" placeholder="https://wceywyxwyygbwfodjdpp.supabase.co" value="https://vzulldiiuguzobjcpikh.supabase.co" style="display: none;">
+        <input id="adminKey" placeholder="sb_publishable_BWBxXzGk8bRGql3VbkCqbA_IZOfH5rc" type="password" value="sb_publishable_SBltOg1AOREur1bYWij2kg_BneOwzh4" style="display: none;">
         <button onclick="connectAdmin()">🔗 連線後台</button>
         <button onclick="exportCSV()" style="background: #10b981; float: right; margin-left: 8px;">💾 匯出 CSV</button>
         <button onclick="showManageUsersModal()" style="background: #6366f1; float: right; margin-left: 8px;">👥 管理參賽者</button>
@@ -77,16 +63,15 @@
       <div id="status" style="margin-top: 12px; padding: 8px; border-radius: 8px; font-weight: bold;">未連線</div>
     </div>
     
-    <!-- 頁面導航 -->
-    <div class="nav">
-      <button class="nav-btn active" data-page="dashboard">總覽</button>
-      <button class="nav-btn" data-page="ranking">排名模式</button>
-      <button class="nav-btn" data-page="recent">最新打卡紀錄</button>
-      <button class="nav-btn" data-page="settings">比賽設定</button>
+    <!-- 页面导航 -->
+    <div class="navigation" id="navigation" style="display: none;">
+      <button class="nav-btn active" onclick="showPage('overview')">总览</button>
+      <button class="nav-btn" onclick="showPage('ranking')">排名详情</button>
+      <button class="nav-btn" onclick="showPage('checkins')">打卡记录</button>
     </div>
     
-    <!-- 總覽頁面 -->
-    <div id="dashboard-page" class="page active">
+    <!-- 总览页面 -->
+    <div id="overview-page" class="page active">
       <div class="dashboard" id="dashboard" style="display: none;">
         <div class="stat-card">
           <div class="stat-number" id="totalRunners">0</div>
@@ -116,6 +101,7 @@
           🏆 排名模式: 
           <button class="mode-btn active" onclick="setMode('gun', event)">🎯 終點先後</button>
           <button class="mode-btn" onclick="setMode('chip', event)">⏱️ 實際用時</button>
+          <button class="mode-btn" onclick="setMode('split', event)">📊 分段成績</button>
         </div>
         <button onclick="refreshData()">🔄 刷新資料</button>
       </div>
@@ -135,77 +121,58 @@
       </table>
     </div>
     
-    <!-- 排名模式頁面 -->
+    <!-- 排名详情页 -->
     <div id="ranking-page" class="page">
-      <h2>排名模式</h2>
-      <div class="controls">
-        <div class="mode-toggle">
-          排名方式: 
-          <button class="mode-btn active" onclick="setRankingMode('gun')">終點到達順序</button>
-          <button class="mode-btn" onclick="setRankingMode('chip')">淨用時排名</button>
-        </div>
-        <button onclick="refreshRankingData()">🔄 刷新排名</button>
+      <h2>🏆 排名详情</h2>
+      <div class="filters">
+        <select id="rankingCheckpointFilter" onchange="refreshData()">
+          <option value="all">所有检查点</option>
+          <!-- 动态填充检查点选项 -->
+        </select>
+        <button onclick="refreshData()">🔄 刷新排名</button>
       </div>
-      <table id="rankingTable">
+      <div class="mode-toggle">
+        排名模式: 
+        <button class="mode-btn active" onclick="setMode('gun', event)">🎯 按终点时间</button>
+        <button class="mode-btn" onclick="setMode('chip', event)">⏱️ 按实际用时</button>
+        <button class="mode-btn" onclick="setMode('split', event)">📊 按分段成绩</button>
+      </div>
+      <table id="detailedRankingTable">
         <thead>
           <tr>
             <th>排名</th>
             <th>號碼</th>
             <th>姓名</th>
-            <th>各檢查點時間</th>
-            <th>總用時</th>
+            <th>各检查点时间</th>
+            <th>总用时</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
     
-    <!-- 最新打卡紀錄頁面 -->
-    <div id="recent-page" class="page">
-      <h2>最新打卡紀錄</h2>
-      <div class="controls">
-        <select id="checkpoint-filter">
-          <option value="all">所有檢查點</option>
-          <!-- 動態加載檢查點選項 -->
+    <!-- 打卡记录页 -->
+    <div id="checkins-page" class="page">
+      <h2>📝 打卡记录</h2>
+      <div class="filters">
+        <select id="checkpointFilter" onchange="filterCheckins()">
+          <option value="all">所有检查点</option>
+          <!-- 动态填充检查点选项 -->
         </select>
-        <button onclick="refreshRecentData()">🔄 刷新記錄</button>
+        <input type="text" id="bibFilter" placeholder="搜索号码" class="filter-input" oninput="filterCheckins()">
+        <button onclick="refreshData()">🔄 刷新记录</button>
       </div>
-      <table id="recentEventsTable">
+      <table id="checkinsTable">
         <thead>
           <tr>
-            <th>時間</th>
+            <th>时间</th>
             <th>號碼</th>
             <th>姓名</th>
-            <th>檢查點</th>
+            <th>检查点</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
-    </div>
-    
-    <!-- 比賽設定頁面 -->
-    <div id="settings-page" class="page">
-      <h2>比賽設定</h2>
-      <input type="text" id="race-name" placeholder="輸入比賽名稱">
-      
-      <div>
-        <label>檢查點數量 (2-10): </label>
-        <input type="number" id="checkpoint-count" min="2" max="10" value="2">
-      </div>
-      
-      <div id="checkpoint-names-container">
-        <div class="checkpoint-name">
-          <label>檢查點 1: </label>
-          <input type="text" value="起點" class="checkpoint-input">
-        </div>
-        <div class="checkpoint-name">
-          <label>檢查點 2: </label>
-          <input type="text" value="終點" class="checkpoint-input">
-        </div>
-      </div>
-      
-      <button id="save-settings" onclick="saveRaceSettings()">保存設定</button>
-      <div id="settings-status" style="margin-top: 12px; padding: 8px;"></div>
     </div>
     
     <div style="margin-top: 24px;">
@@ -220,6 +187,36 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h2>👥 管理參賽者</h2>
         <button onclick="hideManageUsersModal()" style="background: #64748b; padding: 8px 16px;">✕ 關閉</button>
+      </div>
+      
+      <!-- 检查点配置 -->
+      <div style="margin-bottom: 24px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+        <h3>🚩 检查点配置</h3>
+        <p style="margin-bottom: 16px;">设置本次比赛的检查点（最少2个，最多10个）</p>
+        
+        <div style="margin-bottom: 16px;">
+          <label>检查点数量：</label>
+          <input type="number" id="checkpointCount" min="2" max="10" value="2" style="width: 80px;">
+          <button onclick="updateCheckpointFields()" style="background: #3b82f6;">更新数量</button>
+        </div>
+        
+        <div id="checkpointFields">
+          <!-- 动态生成检查点配置字段 -->
+          <div class="checkpoint-field" style="display: flex; gap: 12px; margin-bottom: 8px;">
+            <input placeholder="代码（如START）" style="width: 120px;" value="START">
+            <input placeholder="名称（如起点）" style="flex: 1;" value="起点">
+            <input type="number" placeholder="顺序" style="width: 80px;" value="1">
+            <label style="margin-top: 12px;">必过: <input type="checkbox" checked></label>
+          </div>
+          <div class="checkpoint-field" style="display: flex; gap: 12px; margin-bottom: 8px;">
+            <input placeholder="代码（如FINISH）" style="width: 120px;" value="FINISH">
+            <input placeholder="名称（如终点）" style="flex: 1;" value="终点">
+            <input type="number" placeholder="顺序" style="width: 80px;" value="2">
+            <label style="margin-top: 12px;">必过: <input type="checkbox" checked></label>
+          </div>
+        </div>
+        
+        <button onclick="saveCheckpointConfigs()" style="background: #22c55e;">保存检查点配置</button>
       </div>
       
       <!-- CSV 導入功能 -->
@@ -266,61 +263,175 @@
     let adminClient = null;
     let rankingMode = 'gun';
     let progressChart = null;
-    let currentRaceId = null;
-    let checkpointNames = ['起點', '終點'];
+    let checkpoints = []; // 存储检查点配置
 
-    // 頁面加載時初始化
+    // 页面加载时自动连接
     window.addEventListener('DOMContentLoaded', () => {
-      // 頁面切換功能
-      document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const pageId = this.getAttribute('data-page');
-          
-          // 更新導航按鈕狀態
-          document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
-          
-          // 更新頁面顯示
-          document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-          document.getElementById(`${pageId}-page`).classList.add('active');
-          
-          // 加載對應頁面數據
-          if (pageId === 'ranking' && adminClient) loadRankingData();
-          if (pageId === 'recent' && adminClient) loadRecentEvents();
-          if (pageId === 'settings' && adminClient) loadRaceSettings();
-        });
-      });
-
-      // 檢查點數量變化時動態生成輸入框
-      document.getElementById('checkpoint-count').addEventListener('input', function(e) {
-        const count = parseInt(e.target.value);
-        const container = document.getElementById('checkpoint-names-container');
-        container.innerHTML = '';
-        
-        for (let i = 1; i <= count; i++) {
-          const defaultName = i === 1 ? '起點' : i === count ? '終點' : `CP${i-1}`;
-          const div = document.createElement('div');
-          div.className = 'checkpoint-name';
-          div.innerHTML = `
-            <label>檢查點 ${i}: </label>
-            <input type="text" value="${defaultName}" class="checkpoint-input">
-          `;
-          container.appendChild(div);
-        }
-      });
-
-      // 嘗試從本地存儲加載連接信息
+      // 尝试从本地存储获取连接信息
       const savedUrl = localStorage.getItem('nfc_admin_url');
       const savedKey = localStorage.getItem('nfc_admin_key');
       
       if (savedUrl && savedKey) {
         document.getElementById('adminUrl').value = savedUrl;
         document.getElementById('adminKey').value = savedKey;
-        setTimeout(() => connectAdmin(), 1000);
+        setTimeout(() => connectAdmin(), 1000); // 延迟1秒自动连接
       }
     });
 
-    // 連線後台
+    // 页面切换功能
+    function showPage(pageId) {
+      // 隐藏所有页面
+      document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+      });
+      
+      // 显示选中页面
+      document.getElementById(`${pageId}-page`).classList.add('active');
+      
+      // 更新导航按钮状态
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // 加载对应页面数据
+      if (pageId === 'ranking') {
+        loadRankingData();
+      } else if (pageId === 'checkins') {
+        loadCheckinsData();
+      } else {
+        refreshData();
+      }
+    }
+
+    // 检查点配置相关函数
+    function updateCheckpointFields() {
+      const count = parseInt(document.getElementById('checkpointCount').value);
+      const container = document.getElementById('checkpointFields');
+      container.innerHTML = '';
+      
+      for (let i = 1; i <= count; i++) {
+        const code = i === 1 ? 'START' : i === count ? 'FINISH' : `CP${i-1}`;
+        const name = i === 1 ? '起点' : i === count ? '终点' : `检查点${i-1}`;
+        
+        const field = document.createElement('div');
+        field.className = 'checkpoint-field';
+        field.style = 'display: flex; gap: 12px; margin-bottom: 8px;';
+        field.innerHTML = `
+          <input placeholder="代码" style="width: 120px;" value="${code}">
+          <input placeholder="名称" style="flex: 1;" value="${name}">
+          <input type="number" placeholder="顺序" style="width: 80px;" value="${i}">
+          <label style="margin-top: 12px;">必过: <input type="checkbox" ${i === 1 || i === count ? 'checked' : ''}></label>
+        `;
+        container.appendChild(field);
+      }
+    }
+
+    async function saveCheckpointConfigs() {
+      if (!adminClient) {
+        alert('请先连接数据库');
+        return;
+      }
+      
+      const fields = document.querySelectorAll('.checkpoint-field');
+      const configs = Array.from(fields).map((field, index) => {
+        const inputs = field.querySelectorAll('input');
+        return {
+          code: inputs[0].value,
+          name: inputs[1].value,
+          order_index: parseInt(inputs[2].value),
+          is_required: inputs[3].checked,
+          event_id: 'default' // 默认为当前赛事
+        };
+      });
+      
+      // 先删除现有配置
+      const { error: deleteError } = await adminClient
+        .from('checkpoint_configs')
+        .delete()
+        .eq('event_id', 'default');
+      
+      if (deleteError) {
+        alert('删除旧配置失败: ' + deleteError.message);
+        return;
+      }
+      
+      // 保存新配置
+      const { error } = await adminClient
+        .from('checkpoint_configs')
+        .insert(configs);
+      
+      if (error) {
+        alert('保存检查点配置失败: ' + error.message);
+      } else {
+        alert('检查点配置已保存');
+        await loadCheckpoints(); // 重新加载检查点配置
+        refreshData(); // 刷新所有数据
+      }
+    }
+
+    // 加载检查点配置
+    async function loadCheckpoints() {
+      if (!adminClient) return;
+      
+      const { data, error } = await adminClient
+        .from('checkpoint_configs')
+        .select('*')
+        .eq('event_id', 'default')
+        .order('order_index');
+      
+      if (error) {
+        console.error('加载检查点配置失败:', error);
+        // 使用默认配置
+        checkpoints = [
+          { code: 'START', name: '起点', order_index: 1, is_required: true },
+          { code: 'FINISH', name: '终点', order_index: 2, is_required: true }
+        ];
+      } else {
+        checkpoints = data.length > 0 ? data : [
+          { code: 'START', name: '起点', order_index: 1, is_required: true },
+          { code: 'FINISH', name: '终点', order_index: 2, is_required: true }
+        ];
+      }
+      
+      // 更新检查点筛选器
+      updateCheckpointFilters();
+    }
+
+    // 更新检查点筛选器选项
+    function updateCheckpointFilters() {
+      const filters = [
+        document.getElementById('checkpointFilter'),
+        document.getElementById('rankingCheckpointFilter')
+      ];
+      
+      filters.forEach(filter => {
+        if (!filter) return;
+        
+        // 保存当前选中值
+        const currentValue = filter.value;
+        
+        // 清除现有选项（保留"所有检查点"）
+        while (filter.options.length > 1) {
+          filter.remove(1);
+        }
+        
+        // 添加检查点选项
+        checkpoints.forEach(checkpoint => {
+          const option = document.createElement('option');
+          option.value = checkpoint.code;
+          option.textContent = checkpoint.name;
+          filter.appendChild(option);
+        });
+        
+        // 恢复选中值
+        if (currentValue) {
+          filter.value = currentValue;
+        }
+      });
+    }
+
+    // ✅ 連線後台
     async function connectAdmin() {
       const url = document.getElementById('adminUrl').value.trim();
       const key = document.getElementById('adminKey').value.trim();
@@ -332,8 +443,8 @@
           return;
         }
 
-        // 保存連接信息到本地存儲
-        localStorage.setItem('https://wceywyxwyygbwfodjdpp.supabase.co', url);
+        // 保存连接信息到本地存储
+        localStorage.setItem('https://wceywyxwyygbwfodjdpp.supabase.co);
         localStorage.setItem('sb_publishable_BWBxXzGk8bRGql3VbkCqbA_IZOfH5rc', key);
 
         adminClient = window.supabase.createClient(url, key);
@@ -341,34 +452,39 @@
         status.textContent = '連線中...';
         status.style.background = '#f59e0b';
 
-        // 測試連接
+        // 测试连接
         const { data, error } = await adminClient
           .from('participants')
           .select('*')
           .limit(1);
 
-        if (error) throw new Error('讀取 participants 出錯：' + error.message);
+        if (error) {
+          throw new Error('讀取 participants 出錯：' + error.message);
+        }
 
         status.textContent = '✅ 後台已連線';
         status.style.background = '#10b981';
 
-        // 顯示儀表板
+        // 显示导航和仪表板
+        document.getElementById('navigation').style.display = 'block';
         document.getElementById('dashboard').style.display = 'grid';
         document.getElementById('progressChart').style.display = 'block';
 
-        // 加載數據
+        // 加载检查点配置
+        await loadCheckpoints();
+        
+        // 连接成功后，加载数据
         await refreshData();
-        await loadRaceSettings();
 
       } catch (e) {
-        console.error('連接錯誤:', e);
+        console.error('连接错误:', e);
         status.textContent = '❌ 連線失敗';
         status.style.background = '#ef4444';
         alert('後台連線失敗：' + (e.message || e.toString()));
       }
     }
 
-    // 刷新數據
+    // ✅ 刷新資料
     async function refreshData() {
       if (!adminClient) {
         alert('請先連線後台');
@@ -376,19 +492,7 @@
       }
 
       try {
-        // 獲取當前激活的比賽設置
-        const { data: raceSettings, error: raceError } = await adminClient
-          .from('race_settings')
-          .select('*')
-          .eq('is_active', true)
-          .single();
-          
-        if (raceSettings) {
-          currentRaceId = raceSettings.race_id;
-          checkpointNames = raceSettings.checkpoint_names;
-        }
-
-        // 獲取所有事件數據
+        // 获取所有事件数据
         const { data: events, error: e1 } = await adminClient
           .from('events')
           .select('*')
@@ -396,275 +500,251 @@
         
         if (e1) throw new Error('讀 events 出錯：' + e1.message);
 
-        // 獲取所有參賽者數據
+        // 获取所有参赛者数据
         const { data: participants, error: e2 } = await adminClient
           .from('participants')
           .select('*');
         
         if (e2) throw new Error('讀 participants 出錯：' + e2.message);
 
-        // 顯示結果和日誌
+        // 显示结果和日志
         displayResults(events, participants);
         logRecentEvents(events);
         updateDashboard(events, participants);
         updateProgressChart(events, participants);
+        
+        // 如果当前显示的是排名或打卡记录页面，也更新它们
+        if (document.getElementById('ranking-page').classList.contains('active')) {
+          loadRankingData();
+        }
+        if (document.getElementById('checkins-page').classList.contains('active')) {
+          loadCheckinsData();
+        }
 
       } catch (e) {
-        console.error('刷新數據錯誤:', e);
+        console.error('刷新数据错误:', e);
         alert('刷新數據出錯：' + e.message);
       }
     }
 
-    // 保存比賽設置
-    async function saveRaceSettings() {
-      if (!adminClient) {
-        alert('請先連線後台');
-        return;
-      }
+    // 加载排名详情数据
+    function loadRankingData() {
+      if (!adminClient) return;
+      
+      // 获取筛选条件
+      const checkpointFilter = document.getElementById('rankingCheckpointFilter').value;
+      
+      // 重新使用现有数据刷新排名页面
+      adminClient
+        .from('events')
+        .select('*')
+        .order('timestamp', { ascending: true })
+        .then(({ data: events, error: e1 }) => {
+          if (e1) throw e1;
+          
+          return adminClient
+            .from('participants')
+            .select('*')
+            .then(({ data: participants, error: e2 }) => {
+              if (e2) throw e2;
+              
+              // 处理并显示排名数据
+              displayDetailedRanking(events, participants, checkpointFilter);
+            });
+        })
+        .catch(error => {
+          console.error('加载排名数据失败:', error);
+          alert('加载排名数据失败: ' + error.message);
+        });
+    }
 
-      try {
-        const raceName = document.getElementById('race-name').value;
-        const checkpointCount = parseInt(document.getElementById('checkpoint-count').value);
-        const checkpointInputs = document.querySelectorAll('.checkpoint-input');
-        const checkpointNames = Array.from(checkpointInputs).map(input => input.value);
+    // 显示详细排名
+    function displayDetailedRanking(events, participants, checkpointFilter) {
+      const bibStats = {};
+
+      // 初始化每个参赛者的数据
+      participants.forEach(participant => {
+        bibStats[participant.bib_number] = {
+          bib_number: participant.bib_number,
+          name: participant.name,
+          checkpoints: {},
+          total_time: null,
+          total_duration: null
+        };
+      });
+
+      // 处理事件数据
+      events.forEach(event => {
+        if (!bibStats[event.bib_number]) return;
         
-        if (!raceName) {
-          alert('請輸入比賽名稱');
+        // 如果设置了筛选器且不匹配，则跳过
+        if (checkpointFilter !== 'all' && event.checkpoint !== checkpointFilter) {
           return;
         }
-
-        // 將所有比賽標記為非激活
-        await adminClient
-          .from('race_settings')
-          .update({ is_active: false })
-          .eq('is_active', true);
-
-        // 插入新的比賽設置
-        const { data, error } = await adminClient
-          .from('race_settings')
-          .insert([{
-            race_name: raceName,
-            checkpoint_count: checkpointCount,
-            checkpoint_names: checkpointNames,
-            is_active: true
-          }]);
-
-        if (error) throw error;
-
-        document.getElementById('settings-status').textContent = '✅ 設定保存成功';
-        document.getElementById('settings-status').style.background = '#10b981';
         
-        // 更新當前比賽ID
-        currentRaceId = data[0].race_id;
+        bibStats[event.bib_number].checkpoints[event.checkpoint] = {
+          timestamp: event.timestamp,
+          formatted_time: formatDateTime(event.timestamp)
+        };
+      });
+
+      // 计算每个参赛者的总时间
+      Object.values(bibStats).forEach(runner => {
+        // 获取按顺序排列的检查点
+        const orderedCheckpoints = [...checkpoints]
+          .sort((a, b) => a.order_index - b.order_index)
+          .filter(cp => checkpointFilter === 'all' || cp.code === checkpointFilter);
         
-        // 重新加載數據
-        setTimeout(() => refreshData(), 1000);
-
-      } catch (e) {
-        console.error('保存設置錯誤:', e);
-        document.getElementById('settings-status').textContent = '❌ 保存失敗: ' + e.message;
-        document.getElementById('settings-status').style.background = '#ef4444';
-      }
-    }
-
-    // 加載比賽設置
-    async function loadRaceSettings() {
-      if (!adminClient) return;
-
-      try {
-        const { data, error } = await adminClient
-          .from('race_settings')
-          .select('*')
-          .eq('is_active', true)
-          .single();
-
-        if (error) {
-          console.log('沒有找到激活的比賽設置，使用默認值');
-          return;
-        }
-
-        document.getElementById('race-name').value = data.race_name;
-        document.getElementById('checkpoint-count').value = data.checkpoint_count;
+        // 检查是否有起点和终点记录
+        const firstCheckpoint = orderedCheckpoints[0];
+        const lastCheckpoint = orderedCheckpoints[orderedCheckpoints.length - 1];
         
-        // 更新檢查點輸入框
-        const container = document.getElementById('checkpoint-names-container');
-        container.innerHTML = '';
-        
-        data.checkpoint_names.forEach((name, index) => {
-          const div = document.createElement('div');
-          div.className = 'checkpoint-name';
-          div.innerHTML = `
-            <label>檢查點 ${index + 1}: </label>
-            <input type="text" value="${name}" class="checkpoint-input">
-          `;
-          container.appendChild(div);
-        });
-
-        // 更新檢查點過濾器
-        const filter = document.getElementById('checkpoint-filter');
-        filter.innerHTML = '<option value="all">所有檢查點</option>';
-        data.checkpoint_names.forEach(name => {
-          const option = document.createElement('option');
-          option.value = name;
-          option.textContent = name;
-          filter.appendChild(option);
-        });
-
-        checkpointNames = data.checkpoint_names;
-        currentRaceId = data.race_id;
-
-      } catch (e) {
-        console.error('加載比賽設置錯誤:', e);
-      }
-    }
-
-    // 加載排名數據
-    async function loadRankingData() {
-      if (!adminClient) return;
-
-      try {
-        const { data: events, error: e1 } = await adminClient
-          .from('events')
-          .select('*')
-          .order('timestamp', { ascending: true });
-        
-        const { data: participants, error: e2 } = await adminClient
-          .from('participants')
-          .select('*');
-
-        if (e1 || e2) throw new Error('加載數據出錯');
-
-        // 處理排名數據
-        const bibStats = {};
-
-        events.forEach(event => {
-          if (!bibStats[event.bib_number]) {
-            bibStats[event.bib_number] = {
-              bib_number: event.bib_number,
-              name: (participants.find(p => p.bib_number === event.bib_number) || {}).name || '未知',
-              checkpoints: {}
-            };
+        if (runner.checkpoints[firstCheckpoint.code] && runner.checkpoints[lastCheckpoint.code]) {
+          const startTime = new Date(runner.checkpoints[firstCheckpoint.code].timestamp);
+          const finishTime = new Date(runner.checkpoints[lastCheckpoint.code].timestamp);
+          
+          if (finishTime >= startTime) {
+            runner.total_duration = finishTime - startTime;
+            runner.total_time = formatDuration(runner.total_duration);
           }
-          bibStats[event.bib_number].checkpoints[event.checkpoint] = event.timestamp;
-        });
-
-        // 計算各檢查點之間的時間
-        Object.values(bibStats).forEach(runner => {
-          // 按順序排列檢查點時間
-          const checkpoints = [];
-          checkpointNames.forEach(name => {
-            if (runner.checkpoints[name]) {
-              checkpoints.push({
-                name,
-                time: runner.checkpoints[name]
-              });
-            }
-          });
-
-          // 計算區段時間
-          let totalDuration = 0;
-          for (let i = 1; i < checkpoints.length; i++) {
-            const prev = new Date(checkpoints[i-1].time);
-            const curr = new Date(checkpoints[i].time);
-            const duration = curr - prev;
-            
-            if (duration < 0) duration += 24 * 60 * 60 * 1000; // 處理跨天
-            totalDuration += duration;
-            
-            runner[`duration_${checkpoints[i-1].name}_to_${checkpoints[i].name}`] = duration;
-          }
-
-          runner.total_duration = totalDuration;
-          runner.formatted_total = formatDuration(totalDuration);
-          runner.last_checkpoint_time = checkpoints.length > 0 
-            ? checkpoints[checkpoints.length - 1].time 
-            : null;
-        });
-
-        // 排序
-        let sortedRunners;
-        if (rankingMode === 'gun') {
-          sortedRunners = Object.values(bibStats)
-            .filter(r => r.last_checkpoint_time)
-            .sort((a, b) => new Date(a.last_checkpoint_time) - new Date(b.last_checkpoint_time));
-        } else {
-          sortedRunners = Object.values(bibStats)
-            .filter(r => r.total_duration)
-            .sort((a, b) => a.total_duration - b.total_duration);
         }
+      });
 
-        // 更新排名表格
-        const tbody = document.querySelector('#rankingTable tbody');
-        tbody.innerHTML = '';
-
-        sortedRunners.forEach((runner, index) => {
-          const row = tbody.insertRow();
-          row.className = index < 3 ? ['gold', 'silver', 'bronze'][index] : '';
-
-          // 格式化檢查點時間
-          let checkpointsHtml = '';
-          checkpointNames.forEach(name => {
-            checkpointsHtml += `${name}: ${runner.checkpoints[name] ? formatDateTime(runner.checkpoints[name]) : '-'}</br>`;
-          });
-
-          row.innerHTML = `
-            <td>${index + 1} ${index < 3 ? ['🥇', '🥈', '🥉'][index] : ''}</td>
-            <td>${runner.bib_number}</td>
-            <td>${runner.name}</td>
-            <td>${checkpointsHtml}</td>
-            <td>${runner.formatted_total || '-'}</td>
-          `;
-        });
-
-      } catch (e) {
-        console.error('加載排名數據錯誤:', e);
+      // 根据排名模式排序
+      let sortedRunners = Object.values(bibStats);
+      
+      if (rankingMode === 'gun') {
+        // 按终点时间排序
+        const lastCheckpoint = checkpoints.sort((a, b) => a.order_index - b.order_index).pop();
+        sortedRunners = sortedRunners
+          .filter(r => r.checkpoints[lastCheckpoint?.code])
+          .sort((a, b) => new Date(a.checkpoints[lastCheckpoint.code].timestamp) - new Date(b.checkpoints[lastCheckpoint.code].timestamp));
+      } else if (rankingMode === 'chip') {
+        // 按总用时排序
+        sortedRunners = sortedRunners
+          .filter(r => r.total_duration)
+          .sort((a, b) => a.total_duration - b.total_duration);
+      } else if (rankingMode === 'split') {
+        // 按当前筛选的检查点时间排序
+        if (checkpointFilter !== 'all' && checkpoints.find(cp => cp.code === checkpointFilter)) {
+          sortedRunners = sortedRunners
+            .filter(r => r.checkpoints[checkpointFilter])
+            .sort((a, b) => new Date(a.checkpoints[checkpointFilter].timestamp) - new Date(b.checkpoints[checkpointFilter].timestamp));
+        }
       }
-    }
 
-    // 加載最新打卡記錄
-    async function loadRecentEvents() {
-      if (!adminClient) return;
+      // 更新排名表格
+      const tbody = document.querySelector('#detailedRankingTable tbody');
+      tbody.innerHTML = '';
 
-      try {
-        const checkpointFilter = document.getElementById('checkpoint-filter').value;
+      sortedRunners.forEach((runner, index) => {
+        const row = tbody.insertRow();
+        row.className = index < 3 ? ['gold', 'silver', 'bronze'][index] : '';
         
-        let query = adminClient
-          .from('events')
-          .select('*, participants(name)', { count: 'exact' })
-          .order('timestamp', { ascending: false })
-          .limit(50);
-
-        // 應用過濾器
-        if (checkpointFilter !== 'all') {
-          query = query.eq('checkpoint', checkpointFilter);
-        }
-
-        const { data: events, error } = await query;
-
-        if (error) throw error;
-
-        // 更新表格
-        const tbody = document.querySelector('#recentEventsTable tbody');
-        tbody.innerHTML = '';
-
-        events.forEach(event => {
-          const row = tbody.insertRow();
-          row.innerHTML = `
-            <td>${formatDateTime(event.timestamp)}</td>
-            <td>${event.bib_number}</td>
-            <td>${event.participants?.name || '未知'}</td>
-            <td>${event.checkpoint}</td>
-          `;
+        // 构建检查点时间单元格
+        const orderedCheckpoints = checkpoints.sort((a, b) => a.order_index - b.order_index);
+        let checkpointsHtml = '';
+        
+        orderedCheckpoints.forEach(cp => {
+          if (checkpointFilter === 'all' || cp.code === checkpointFilter) {
+            const checkpointData = runner.checkpoints[cp.code];
+            checkpointsHtml += `<div>${cp.name}: ${checkpointData ? checkpointData.formatted_time : '-'}</div>`;
+          }
         });
 
-      } catch (e) {
-        console.error('加載最新記錄錯誤:', e);
-      }
+        row.innerHTML = `
+          <td>${index + 1} ${index < 3 ? ['🥇', '🥈', '🥉'][index] : ''}</td>
+          <td>${runner.bib_number}</td>
+          <td>${runner.name}</td>
+          <td>${checkpointsHtml}</td>
+          <td>${runner.total_time || '-'}</td>
+        `;
+      });
     }
 
-    // 顯示結果表格
+    // 加载打卡记录数据
+    function loadCheckinsData() {
+      if (!adminClient) return;
+      
+      // 获取所有事件数据
+      adminClient
+        .from('events')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .then(({ data: events, error: e1 }) => {
+          if (e1) throw e1;
+          
+          return adminClient
+            .from('participants')
+            .select('*')
+            .then(({ data: participants, error: e2 }) => {
+              if (e2) throw e2;
+              
+              // 显示打卡记录
+              displayCheckins(events, participants);
+            });
+        })
+        .catch(error => {
+          console.error('加载打卡记录失败:', error);
+          alert('加载打卡记录失败: ' + error.message);
+        });
+    }
+
+    // 显示打卡记录
+    function displayCheckins(events, participants) {
+      const tbody = document.querySelector('#checkinsTable tbody');
+      tbody.innerHTML = '';
+      
+      // 创建参赛者映射表
+      const participantMap = {};
+      participants.forEach(p => {
+        participantMap[p.bib_number] = p.name;
+      });
+      
+      // 创建检查点名称映射表
+      const checkpointMap = {};
+      checkpoints.forEach(cp => {
+        checkpointMap[cp.code] = cp.name;
+      });
+      
+      // 显示前100条记录
+      const eventsToShow = events.slice(0, 100);
+      
+      eventsToShow.forEach(event => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${formatDateTime(event.timestamp)}</td>
+          <td>${event.bib_number}</td>
+          <td>${participantMap[event.bib_number] || '未知'}</td>
+          <td>${checkpointMap[event.checkpoint] || event.checkpoint}</td>
+        `;
+      });
+    }
+
+    // 筛选打卡记录
+    function filterCheckins() {
+      const checkpointFilter = document.getElementById('checkpointFilter').value;
+      const bibFilter = document.getElementById('bibFilter').value.toLowerCase();
+      const rows = document.querySelectorAll('#checkinsTable tbody tr');
+      
+      rows.forEach(row => {
+        const bib = row.cells[1].textContent.toLowerCase();
+        const checkpoint = row.cells[3].textContent;
+        
+        const checkpointMatch = checkpointFilter === 'all' || 
+          checkpoints.some(cp => 
+            cp.name === checkpoint && cp.code === checkpointFilter
+          );
+        const bibMatch = bib.includes(bibFilter);
+        
+        row.style.display = checkpointMatch && bibMatch ? '' : 'none';
+      });
+    }
+
     function displayResults(events, participants) {
       const bibStats = {};
+      const startCheckpoint = checkpoints.find(cp => cp.code === 'START') || checkpoints[0];
+      const finishCheckpoint = checkpoints.find(cp => cp.code === 'FINISH') || checkpoints[checkpoints.length - 1];
 
       events.forEach(event => {
         if (!bibStats[event.bib_number]) {
@@ -677,26 +757,26 @@
             duration: null
           };
         }
-        
-        // 設置起點和終點時間
-        if (event.checkpoint === checkpointNames[0]) {
+        if (event.checkpoint === startCheckpoint.code) {
           bibStats[event.bib_number].start_time = event.timestamp;
-        } else if (event.checkpoint === checkpointNames[checkpointNames.length - 1]) {
+        } else if (event.checkpoint === finishCheckpoint.code) {
           bibStats[event.bib_number].finish_time = event.timestamp;
         }
       });
 
-      // 計算完成時間
+      // 计算完成时间
       Object.values(bibStats).forEach(runner => {
         if (runner.start_time && runner.finish_time) {
           const startTime = new Date(runner.start_time);
           const finishTime = new Date(runner.finish_time);
           
+          // 确保开始时间在结束时间之前
           if (finishTime >= startTime) {
             const duration = finishTime - startTime;
             runner.duration_ms = duration;
             runner.duration = formatDuration(duration);
           } else {
+            // 如果结束时间早于开始时间，可能是跨天或时区问题
             const duration = (finishTime.getTime() + 24 * 60 * 60 * 1000) - startTime.getTime();
             runner.duration_ms = duration;
             runner.duration = formatDuration(duration);
@@ -704,7 +784,7 @@
         }
       });
 
-      // 排序
+      // 根据排名模式排序
       let sortedRunners;
       if (rankingMode === 'gun') {
         sortedRunners = Object.values(bibStats)
@@ -735,7 +815,6 @@
       });
     }
 
-    // 格式化時間函數
     function formatDuration(ms) {
       if (typeof ms !== 'number' || isNaN(ms) || ms < 0) {
         return '无效时间';
@@ -750,307 +829,340 @@
       return secs + '秒';
     }
     
-    // 格式化日期時間
+    // 格式化日期时间，修复时区显示问题
     function formatDateTime(timestamp) {
       try {
         const date = new Date(timestamp);
-        if (isNaN(date.getTime())) return '无效时间';
         
-        const adjustedTime = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-        const year = adjustedTime.getFullYear();
-        const month = String(adjustedTime.getMonth() + 1).padStart(2, '0');
-        const day = String(adjustedTime.getDate()).padStart(2, '0');
-        const hours = String(adjustedTime.getHours()).padStart(2, '0');
-        const minutes = String(adjustedTime.getMinutes()).padStart(2, '0');
-        const seconds = String(adjustedTime.getSeconds()).padStart(2, '0');
+        if (isNaN(date.getTime())) {
+          console.error(`无效的时间戳: ${timestamp}`);
+          return '无效时间';
+        }
+        
+        // 调整时区
+        const utcTime = date.getTime();
+        const adjustedTime = utcTime + (8 * 60 * 60 * 1000); // 添加8小时
+        const adjustedDate = new Date(adjustedTime);
+        
+        const year = adjustedDate.getFullYear();
+        const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(adjustedDate.getDate()).padStart(2, '0');
+        const hours = String(adjustedDate.getHours()).padStart(2, '0');
+        const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
+        const seconds = String(adjustedDate.getSeconds()).padStart(2, '0');
         
         return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
       } catch (error) {
+        console.error(`格式化时间时出错: ${error.message}`);
         return `错误: ${error.message}`;
       }
     }
 
-    // 日誌最新事件
     function logRecentEvents(events) {
       const recent = events.slice(-10).reverse();
       const log = document.getElementById('log');
+      
+      // 创建检查点名称映射表
+      const checkpointMap = {};
+      checkpoints.forEach(cp => {
+        checkpointMap[cp.code] = cp.name;
+      });
+      
       log.innerHTML = recent.map(e => {
         const adjustedTime = new Date(new Date(e.timestamp).getTime() + (8 * 60 * 60 * 1000));
-        return `<span>
-        ✅ ${e.bib_number} ${e.checkpoint} ${adjustedTime.toLocaleString('zh-HK')}
+        const checkpointName = checkpointMap[e.checkpoint] || e.checkpoint;
+        const color = e.checkpoint === 'START' ? '#10b981' : e.checkpoint === 'FINISH' ? '#ef4444' : '#3b82f6';
+        return `<span style="color: ${color};">
+        ✅ ${e.bib_number} ${checkpointName} ${adjustedTime.toLocaleString('zh-HK')}
         </span>`;
       }).join('<br>');
     }
 
-    // 更新儀表板
     function updateDashboard(events, participants) {
       const totalRunners = participants.length;
-      const startCheckpoint = checkpointNames[0];
-      const finishCheckpoint = checkpointNames[checkpointNames.length - 1];
+      const startCheckpoint = checkpoints.find(cp => cp.code === 'START') || checkpoints[0];
+      const finishCheckpoint = checkpoints.find(cp => cp.code === 'FINISH') || checkpoints[checkpoints.length - 1];
       
-      const startedEvents = events.filter(e => e.checkpoint === startCheckpoint);
-      const finishedEvents = events.filter(e => e.checkpoint === finishCheckpoint);
+      const startedEvents = events.filter(e => e.checkpoint === startCheckpoint.code);
+      const finishedEvents = events.filter(e => e.checkpoint === finishCheckpoint.code);
       
-      // 計算平均時間
+      // 去重统计已开始和已完成的人数
+      const startedBibs = new Set(startedEvents.map(e => e.bib_number));
+      const finishedBibs = new Set(finishedEvents.map(e => e.bib_number));
+      
+      const startedCount = startedBibs.size;
+      const finishedCount = finishedBibs.size;
+      
+      // 计算平均完成时间
       let totalDuration = 0;
       let validFinishCount = 0;
       
       participants.forEach(runner => {
-        const startEvent = startedEvents.find(e => e.bib_number === runner.bib_number);
-        const finishEvent = finishedEvents.find(e => e.bib_number === runner.bib_number);
-        
-        if (startEvent && finishEvent) {
-          const startTime = new Date(startEvent.timestamp).getTime();
-          const finishTime = new Date(finishEvent.timestamp).getTime();
-          let duration = finishTime - startTime;
+        if (startedBibs.has(runner.bib_number) && finishedBibs.has(runner.bib_number)) {
+          const startEvent = startedEvents.find(e => e.bib_number === runner.bib_number);
+          const finishEvent = finishedEvents.find(e => e.bib_number === runner.bib_number);
           
-          if (duration < 0) duration += 24 * 60 * 60 * 1000;
-          
-          if (duration > 0 && duration < 24 * 60 * 60 * 1000) {
-            totalDuration += duration;
-            validFinishCount++;
+          if (startEvent && finishEvent) {
+            const startTime = new Date(startEvent.timestamp).getTime();
+            const finishTime = new Date(finishEvent.timestamp).getTime();
+            const duration = finishTime - startTime;
+            
+            if (duration > 0 && duration < 24 * 60 * 60 * 1000) {
+              totalDuration += duration;
+              validFinishCount++;
+            }
           }
         }
       });
       
       const avgTime = validFinishCount > 0 ? totalDuration / validFinishCount : 0;
       
-      // 更新顯示
+      // 更新仪表盘
       document.getElementById('totalRunners').textContent = totalRunners;
-      document.getElementById('startedRunners').textContent = new Set(startedEvents.map(e => e.bib_number)).size;
-      document.getElementById('finishedRunners').textContent = new Set(finishedEvents.map(e => e.bib_number)).size;
+      document.getElementById('startedRunners').textContent = startedCount;
+      document.getElementById('finishedRunners').textContent = finishedCount;
       document.getElementById('avgTime').textContent = avgTime ? formatDuration(avgTime) : '00:00';
     }
 
-    // 更新進度圖表
     function updateProgressChart(events, participants) {
-      const startCheckpoint = checkpointNames[0];
-      const finishCheckpoint = checkpointNames[checkpointNames.length - 1];
-      
-      const started = new Set(events.filter(e => e.checkpoint === startCheckpoint).map(e => e.bib_number)).size;
-      const finished = new Set(events.filter(e => e.checkpoint === finishCheckpoint).map(e => e.bib_number)).size;
-      const total = participants.length;
-      const inProgress = started - finished;
-      
       const ctx = document.getElementById('progressChartCanvas').getContext('2d');
+      const startCheckpoint = checkpoints.find(cp => cp.code === 'START') || checkpoints[0];
+      const finishCheckpoint = checkpoints.find(cp => cp.code === 'FINISH') || checkpoints[checkpoints.length - 1];
       
-      if (progressChart) {
-        progressChart.destroy();
+      // 按小时统计开始和完成的人数
+      const hourData = {};
+      const maxHours = 12; // 最多显示12小时的数据
+      
+      // 初始化数据
+      for (let i = 0; i < maxHours; i++) {
+        hourData[i] = { start: 0, finish: 0 };
       }
       
-      progressChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['已完成', '進行中', '未開始'],
-          datasets: [{
-            data: [finished, inProgress, total - started],
-            backgroundColor: ['#10b981', '#3b82f6', '#94a3b8']
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              position: 'bottom'
+      // 处理开始事件
+      const startEvents = events.filter(e => e.checkpoint === startCheckpoint.code);
+      startEvents.forEach(event => {
+        const hour = new Date(event.timestamp).getHours() % maxHours;
+        hourData[hour].start++;
+      });
+      
+      // 处理完成事件
+      const finishEvents = events.filter(e => e.checkpoint === finishCheckpoint.code);
+      finishEvents.forEach(event => {
+        const hour = new Date(event.timestamp).getHours() % maxHours;
+        hourData[hour].finish++;
+      });
+      
+      // 准备图表数据
+      const labels = Array.from({ length: maxHours }, (_, i) => `${i}:00`);
+      const startData = Array.from({ length: maxHours }, (_, i) => hourData[i].start);
+      const finishData = Array.from({ length: maxHours }, (_, i) => hourData[i].finish);
+      
+      // 创建或更新图表
+      if (progressChart) {
+        progressChart.data.labels = labels;
+        progressChart.data.datasets[0].data = startData;
+        progressChart.data.datasets[1].data = finishData;
+        progressChart.update();
+      } else {
+        progressChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: '开始',
+                data: startData,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.3,
+                fill: true
+              },
+              {
+                label: '完成',
+                data: finishData,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.3,
+                fill: true
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' }
+            },
+            scales: {
+              y: { beginAtZero: true }
             }
           }
-        }
-      });
+        });
+      }
     }
 
-    // 設置排名模式
     function setMode(mode, event) {
       rankingMode = mode;
+      
+      // 更新按钮状态
       document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
+      if (event && event.target) {
+        event.target.classList.add('active');
+      }
+      
+      // 刷新数据
       refreshData();
     }
 
-    // 設置排名頁面的排名模式
-    function setRankingMode(mode) {
-      rankingMode = mode;
-      document.querySelectorAll('#ranking-page .mode-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('#ranking-page .mode-btn').forEach(btn => {
-        if (btn.onclick.toString().includes(mode)) {
-          btn.classList.add('active');
-        }
-      });
-      loadRankingData();
-    }
-
-    // 刷新排名數據
-    function refreshRankingData() {
-      loadRankingData();
-    }
-
-    // 刷新最新記錄
-    function refreshRecentData() {
-      loadRecentEvents();
-    }
-
-    // 匯出CSV
-    async function exportCSV() {
-      if (!adminClient) {
-        alert('請先連線後台');
-        return;
-      }
-
-      try {
-        const { data: events, error: e1 } = await adminClient.from('events').select('*');
-        const { data: participants, error: e2 } = await adminClient.from('participants').select('*');
-        
-        if (e1 || e2) throw new Error('獲取數據失敗');
-
-        // 處理數據
-        const bibStats = {};
-        events.forEach(event => {
-          if (!bibStats[event.bib_number]) {
-            bibStats[event.bib_number] = {
-              bib_number: event.bib_number,
-              name: (participants.find(p => p.bib_number === event.bib_number) || {}).name || '未知'
-            };
-          }
-          bibStats[event.bib_number][event.checkpoint] = formatDateTime(event.timestamp);
-        });
-
-        // 生成CSV
-        let csv = '號碼,姓名';
-        checkpointNames.forEach(name => {
-          csv += `,${name}`;
-        });
-        csv += '\n';
-
-        Object.values(bibStats).forEach(runner => {
-          csv += `${runner.bib_number},${runner.name}`;
-          checkpointNames.forEach(name => {
-            csv += `,${runner[name] || ''}`;
-          });
-          csv += '\n';
-        });
-
-        // 下載CSV
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `race_results_${new Date().toISOString().slice(0,10)}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-      } catch (e) {
-        console.error('匯出CSV錯誤:', e);
-        alert('匯出失敗：' + e.message);
-      }
-    }
-
-    // 管理參賽者相關函數
+    // 显示管理参赛者模态框
     function showManageUsersModal() {
       if (!adminClient) {
-        alert('請先連線後台');
+        alert('请先连接数据库');
         return;
       }
+      
       document.getElementById('manageUsersModal').style.display = 'flex';
       loadParticipants();
     }
 
+    // 隐藏管理参赛者模态框
     function hideManageUsersModal() {
       document.getElementById('manageUsersModal').style.display = 'none';
     }
 
+    // 加载参赛者列表
     async function loadParticipants() {
-      try {
-        const { data, error } = await adminClient
-          .from('participants')
-          .select('*')
-          .order('bib_number');
-
-        if (error) throw error;
-
-        const tbody = document.getElementById('participantsTableBody');
-        tbody.innerHTML = '';
-
-        data.forEach(participant => {
-          const row = tbody.insertRow();
-          row.innerHTML = `
-            <td>${participant.bib_number}</td>
-            <td>${participant.name}</td>
-            <td>
-              <button onclick="deleteParticipant('${participant.bib_number}')" style="background: #ef4444; padding: 4px 8px;">刪除</button>
-            </td>
-          `;
-        });
-
-      } catch (e) {
-        console.error('加載參賽者錯誤:', e);
-      }
-    }
-
-    async function addSingleUser() {
-      const bib = document.getElementById('manualBibNumber').value.trim();
-      const name = document.getElementById('manualName').value.trim();
-
-      if (!bib || !name) {
-        alert('請填寫號碼和姓名');
+      if (!adminClient) return;
+      
+      const { data, error } = await adminClient
+        .from('participants')
+        .select('*')
+        .order('bib_number');
+      
+      if (error) {
+        console.error('加载参赛者失败:', error);
+        alert('加载参赛者失败: ' + error.message);
         return;
       }
+      
+      const tbody = document.getElementById('participantsTableBody');
+      tbody.innerHTML = '';
+      
+      data.forEach(participant => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${participant.bib_number}</td>
+          <td>${participant.name}</td>
+          <td>
+            <button onclick="deleteParticipant('${participant.bib_number}')" style="background: #ef4444; padding: 4px 8px; font-size: 12px;">删除</button>
+          </td>
+        `;
+      });
+    }
 
+    // 添加单个参赛者
+    async function addSingleUser() {
+      if (!adminClient) {
+        alert('请先连接数据库');
+        return;
+      }
+      
+      const bib = document.getElementById('manualBibNumber').value.trim();
+      const name = document.getElementById('manualName').value.trim();
+      
+      if (!bib || !name) {
+        alert('请填写号码和姓名');
+        return;
+      }
+      
       try {
-        const { error } = await adminClient
+        // 检查号码是否已存在
+        const { data: existing } = await adminClient
           .from('participants')
-          .insert([{ bib_number: bib, name: name }]);
-
-        if (error) throw error;
-
+          .select('*')
+          .eq('bib_number', bib)
+          .single();
+          
+        if (existing) {
+          alert('该号码已存在');
+          return;
+        }
+      } catch (error) {
+        // 如果没有找到记录，error是正常的
+        if (error.code !== 'PGRST116') {
+          console.error('检查参赛者失败:', error);
+          alert('操作失败: ' + error.message);
+          return;
+        }
+      }
+      
+      // 添加新参赛者
+      const { error } = await adminClient
+        .from('participants')
+        .insert([{ bib_number: bib, name: name }]);
+      
+      if (error) {
+        console.error('添加参赛者失败:', error);
+        alert('添加失败: ' + error.message);
+      } else {
+        alert('添加成功');
         document.getElementById('manualBibNumber').value = '';
         document.getElementById('manualName').value = '';
         loadParticipants();
-        refreshData();
-
-      } catch (e) {
-        console.error('添加參賽者錯誤:', e);
-        alert('添加失敗：' + e.message);
       }
     }
 
-    async function deleteParticipant(bib) {
-      if (!confirm(`確定要刪除號碼 ${bib} 的參賽者嗎？`)) return;
-
-      try {
-        // 先刪除相關事件
-        await adminClient.from('events').delete().eq('bib_number', bib);
-        
-        // 再刪除參賽者
-        const { error } = await adminClient
-          .from('participants')
-          .delete()
-          .eq('bib_number', bib);
-
-        if (error) throw error;
-
-        loadParticipants();
-        refreshData();
-
-      } catch (e) {
-        console.error('刪除參賽者錯誤:', e);
-        alert('刪除失敗：' + e.message);
-      }
-    }
-
-    async function importFromCSV() {
-      const input = document.getElementById('csvFileInput');
-      const status = document.getElementById('csvImportStatus');
-      
-      if (!input.files || input.files.length === 0) {
-        alert('請選擇CSV文件');
+    // 删除参赛者
+    async function deleteParticipant(bibNumber) {
+      if (!confirm(`确定要删除号码为 ${bibNumber} 的参赛者吗？`)) {
         return;
       }
-
-      const file = input.files[0];
-      const reader = new FileReader();
       
-      status.textContent = '正在導入...';
+      if (!adminClient) {
+        alert('请先连接数据库');
+        return;
+      }
+      
+      // 先删除相关事件
+      const { error: eventError } = await adminClient
+        .from('events')
+        .delete()
+        .eq('bib_number', bibNumber);
+      
+      if (eventError) {
+        console.error('删除事件失败:', eventError);
+        alert('删除事件失败: ' + eventError.message);
+        return;
+      }
+      
+      // 再删除参赛者
+      const { error } = await adminClient
+        .from('participants')
+        .delete()
+        .eq('bib_number', bibNumber);
+      
+      if (error) {
+        console.error('删除参赛者失败:', error);
+        alert('删除失败: ' + error.message);
+      } else {
+        alert('删除成功');
+        loadParticipants();
+      }
+    }
+
+    // 从CSV导入参赛者
+    async function importFromCSV() {
+      const fileInput = document.getElementById('csvFileInput');
+      const statusElement = document.getElementById('csvImportStatus');
+      
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('请选择CSV文件');
+        return;
+      }
+      
+      statusElement.textContent = '正在解析CSV文件...';
+      
+      const file = fileInput.files[0];
+      const reader = new FileReader();
       
       reader.onload = async function(e) {
         try {
@@ -1058,6 +1170,7 @@
           const lines = content.split('\n');
           const participants = [];
           
+          // 解析CSV内容
           for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
@@ -1068,49 +1181,156 @@
                 bib_number: bib.trim(),
                 name: name.trim()
               });
+            } else {
+              statusElement.textContent += `\n行 ${i+1} 格式错误: ${line}`;
             }
           }
           
           if (participants.length === 0) {
-            status.textContent = '❌ 未找到有效數據';
+            statusElement.textContent += '\n没有有效的参赛者数据';
             return;
           }
           
-          // 批量插入
+          statusElement.textContent += `\n发现 ${participants.length} 个参赛者，正在导入...`;
+          
+          // 批量导入
           const { error } = await adminClient
             .from('participants')
-            .insert(participants);
+            .insert(participants)
+            .onConflict('bib_number')
+            .ignore(); // 忽略已存在的号码
           
-          if (error) throw error;
+          if (error) {
+            throw new Error(error.message);
+          }
           
-          status.textContent = `✅ 成功導入 ${participants.length} 名參賽者`;
-          input.value = '';
-          loadParticipants();
-          refreshData();
+          statusElement.textContent += '\n导入完成！';
+          loadParticipants(); // 刷新列表
           
-        } catch (e) {
-          console.error('CSV導入錯誤:', e);
-          status.textContent = `❌ 導入失敗: ${e.message}`;
+        } catch (error) {
+          statusElement.textContent += `\n导入失败: ${error.message}`;
+          console.error('CSV导入错误:', error);
         }
       };
       
       reader.readAsText(file);
     }
 
-    async function clearAllData() {
-      if (!confirm('確定要清空所有比賽數據嗎？此操作不可恢復！')) return;
-
-      try {
-        // 先刪除事件
-        await adminClient.from('events').delete().neq('id', '');
+    // 导出CSV
+    async function exportCSV() {
+      if (!adminClient) {
+        alert('请先连接数据库');
+        return;
+      }
+      
+      // 获取所有数据
+      const { data: participants, error: e1 } = await adminClient
+        .from('participants')
+        .select('*');
+      
+      if (e1) {
+        alert('获取参赛者数据失败: ' + e1.message);
+        return;
+      }
+      
+      const { data: events, error: e2 } = await adminClient
+        .from('events')
+        .select('*');
+      
+      if (e2) {
+        alert('获取事件数据失败: ' + e2.message);
+        return;
+      }
+      
+      // 准备CSV内容
+      let csvContent = '号码,姓名';
+      
+      // 添加检查点列
+      checkpoints.forEach(cp => {
+        csvContent += `,${cp.name}`;
+      });
+      
+      csvContent += ',总用时\n';
+      
+      // 处理每个参赛者
+      participants.forEach(participant => {
+        const row = [participant.bib_number, participant.name];
         
-        // 不刪除參賽者，只重置比賽數據
-        refreshData();
-        alert('數據已清空');
+        // 收集每个检查点的时间
+        const checkpointTimes = {};
+        events.forEach(event => {
+          if (event.bib_number === participant.bib_number) {
+            checkpointTimes[event.checkpoint] = formatDateTime(event.timestamp);
+          }
+        });
+        
+        // 添加检查点时间
+        checkpoints.forEach(cp => {
+          row.push(checkpointTimes[cp.code] || '');
+        });
+        
+        // 计算总用时
+        const startCheckpoint = checkpoints[0];
+        const finishCheckpoint = checkpoints[checkpoints.length - 1];
+        
+        if (checkpointTimes[startCheckpoint.code] && checkpointTimes[finishCheckpoint.code]) {
+          const startTime = new Date(events.find(e => e.bib_number === participant.bib_number && e.checkpoint === startCheckpoint.code).timestamp);
+          const finishTime = new Date(events.find(e => e.bib_number === participant.bib_number && e.checkpoint === finishCheckpoint.code).timestamp);
+          const duration = finishTime - startTime;
+          row.push(formatDuration(duration));
+        } else {
+          row.push('');
+        }
+        
+        csvContent += row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',') + '\n';
+      });
+      
+      // 创建并下载CSV文件
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `race_results_${new Date().toISOString().slice(0,10)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
 
-      } catch (e) {
-        console.error('清空數據錯誤:', e);
-        alert('清空失敗：' + e.message);
+    // 清空所有数据
+    async function clearAllData() {
+      if (!confirm('确定要清空所有数据吗？此操作不可恢复！')) {
+        return;
+      }
+      
+      if (!adminClient) {
+        alert('请先连接数据库');
+        return;
+      }
+      
+      try {
+        // 先删除事件数据
+        const { error: e1 } = await adminClient
+          .from('events')
+          .delete()
+          .neq('id', ''); // 删除所有记录
+        
+        if (e1) throw e1;
+        
+        // 再删除参赛者数据
+        const { error: e2 } = await adminClient
+          .from('participants')
+          .delete()
+          .neq('id', ''); // 删除所有记录
+        
+        if (e2) throw e2;
+        
+        alert('所有数据已清空');
+        refreshData();
+        
+      } catch (error) {
+        console.error('清空数据失败:', error);
+        alert('清空数据失败: ' + error.message);
       }
     }
   </script>
