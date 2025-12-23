@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <title>🏁 NFC 跑手打卡機</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+      background: white; /* 更改為白色背景 */
+      color: #333; /* 更改為黑色文字 */
+      min-height: 100vh; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      padding: 20px; 
+      text-align: center;
+    }
+    .card { 
+      background: rgba(255,255,255,0.95); 
+      border-radius: 24px; 
+      padding: 40px; 
+      max-width: 400px; 
+      width: 100%; 
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2); 
+    }
+    input { 
+      width: 100%; 
+      padding: 16px; 
+      margin: 12px 0; 
+      border: 1px solid #ddd; /* 調整邊框顏色 */
+      border-radius: 12px; 
+      font-size: 16px; 
+      box-sizing: border-box; 
+    }
+    button { 
+      width: 100%; 
+      padding: 20px; 
+      margin: 12px 0; 
+      border: none; 
+      border-radius: 16px; 
+      font-size: 18px; 
+      font-weight: bold; 
+      cursor: pointer; 
+      transition: all 0.3s; 
+    }
+    .checkpoint-btn { 
+      background: #3b82f6; 
+      color: white; 
+    }
+    .start { background: #10b981; color: white; }
+    .finish { background: #ef4444; color: white; }
+    .start:active, .finish:active, .checkpoint-btn:active { transform: scale(0.98); }
+    #log { 
+      background: #f8fafc; 
+      border-radius: 12px; 
+      padding: 20px; 
+      margin: 20px 0; 
+      max-height: 300px; 
+      overflow-y: auto; 
+      font-family: monospace; 
+      font-size: 14px; 
+      color: #1e293b; 
+    }
+    .connected { background: #10b981 !important; }
+    .status { 
+      padding: 12px; 
+      border-radius: 12px; 
+      margin: 12px 0; 
+      font-weight: bold; 
+    }
+    .mode-selector { margin: 20px 0; }
+    .mode-btn { 
+      padding: 8px 16px; 
+      margin: 0 4px; 
+      border: none; 
+      border-radius: 20px; 
+      cursor: pointer; 
+      font-weight: bold; 
+    }
+    .mode-btn.active { background: #3b82f6; color: white; }
+    .last-bib { 
+      margin-top: 16px; 
+      padding: 12px; 
+      background: #f8fafc; 
+      border-radius: 8px; 
+      color: #1e293b; 
+      font-weight: bold; 
+    }
+    .checkpoint-selector {
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🏃‍♂️ NFC 計時站</h1>
+    
+    <div id="connectionSection" style="display: none;">
+      <input id="url" placeholder="https://wceywyxwyygbwfodjdpp.supabase.co" value="YOUR_SUPABASE_URL">
+      <input id="key" placeholder="sb_publishable_BWBxXzGk8bRGql3VbkCqbA_IZOfH5rc" type="password" value="YOUR_SUPABASE_KEY">
+      <button onclick="connect()">🔗 連線資料庫</button>
+      <button onclick="testConnection()" style="background: #6366f1; margin-top: 8px;">🔍 測試連線</button>
+    </div>
+    <button onclick="toggleConnectionSection()" style="background: #6b7280; margin-bottom: 12px;">⚙️ 設置</button>
+    
+    <div id="status" class="status" style="background: #f59e0b;">未連線</div>
+    
+    <div class="mode-selector">
+      <button class="mode-btn active" onclick="setMode('manual', event)">手動輸入</button>
+      <button class="mode-btn" onclick="enableNfcMode(event)">NFC模式</button>
+    </div>
+    
+    <!-- 檢查點選擇器 -->
+    <div class="checkpoint-selector">
+      <select id="checkpoint-select" style="width: 100%; padding: 12px; border-radius: 8px;">
+        <!-- 將從後台設定動態加載 -->
+        <option value="起點">起點</option>
+        <option value="終點">終點</option>
+      </select>
+    </div>
+    
+    <button id="checkpointBtn" class="checkpoint-btn" onclick="hitCheckpoint()" disabled>📌 打卡</button>
+    
+    <div class="last-bib">
+      上次打卡號碼: <span id="lastBib">-</span>
+    </div>
+    
+    <div id="log">即時記錄會顯示在此...</div>
+  </div>
+
+  <script>
+    // 全局变量
+    let client = null;
+    let currentMode = 'manual';
+    let lastBibNumber = '';
+    let nfcReader = null;
+    let currentRaceId = null;
+    
+    // 页面加载时自动连接
+    window.addEventListener('DOMContentLoaded', () => {
+      // 尝试从本地存储获取连接信息
+      const savedUrl = localStorage.getItem('nfc_checkpoint_url');
+      const savedKey = localStorage.getItem('nfc_checkpoint_key');
+      const savedMode = localStorage.getItem('nfc_checkpoint_mode');
+      const savedLastBib = localStorage.getItem('nfc_last_bib');
+      
+      // 设置默认连接信息
+      const defaultUrl = 'YOUR_SUPABASE_URL';
+      const defaultKey = 'YOUR_SUPABASE_KEY';
+      
+      if (savedUrl && savedKey) {
+        document.getElementById('url').value = savedUrl;
+        document.getElementById('key').value = savedKey;
+      } else {
+        document.getElementById('url').value = defaultUrl;
+        document.getElementById('key').value = defaultKey;
+        localStorage.setItem('nfc_checkpoint_url', defaultUrl);
+        localStorage.setItem('nfc_checkpoint_key', defaultKey);
+      }
+      
+      // 延迟0.5秒自动连接
+      setTimeout(() => connect(), 500);
+      
+      if (savedMode) {
+        setMode(savedMode);
+      }
+      
+      if (savedLastBib) {
+        lastBibNumber = savedLastBib;
+        document.getElementById('lastBib').textContent = savedLastBib;
+      }
+    });
+    
+    // 切换连接设置区域的显示/隐藏
+    function toggleConnectionSection() {
+      const section = document.getElementById('connectionSection');
+      if (section.style.display === 'none') {
+        section.style.display = 'block';
+        logMessage('⚙️ 顯示連線設置');
+      } else {
+        section.style.display = 'none';
+        logMessage('⚙️ 隱藏連線設置');
+      }
+    }
+    
+    // 测试连接函数
+    async function testConnection() {
+      try {
+        const url = document.getElementById('url').value.trim();
+        const key = document.getElementById('key').value.trim();
+        
+        if (!url || !key) {
+          const msg = '❌ 請填寫URL和Key';
+          alert(msg);
+          return;
+        }
+        
+        logMessage('🔍 開始測試連線...');
+        
+        if (!window.supabase) {
+          throw new Error('❌ Supabase SDK未加載');
+        }
+        
+        logMessage('✅ Supabase SDK已加載');
+        
+        // 创建临时客户端测试连接
+        const testClient = window.supabase.createClient(url, key);
+        logMessage('✅ 成功創建Supabase客戶端');
+        
+        // 测试数据库连接
+        logMessage('🔍 測試數據庫連線...');
+        const { data, error } = await testClient
+          .from('participants')
+          .select('*')
+          .limit(1)
+          .timeout(5000);
+        
+        if (error) {
+          console.error('數據庫查詢錯誤:', error);
+          logMessage(`❌ 數據庫查詢失敗: ${error.message}`);
+          alert('測試失敗，請查看日誌了解詳情');
+          return;
+        }
+        
+        logMessage(`✅ 數據庫連線成功！返回了 ${data ? data.length : 0} 條數據`);
+        logMessage('🎉 所有測試通過，可以進行正式連線');
+        alert('✅ 測試成功！連線信息正確');
+        
+      } catch (e) {
+        console.error('測試過程中發生異常:', e);
+        logMessage(`❌ 測試失敗: ${e.message}`);
+        alert('測試失敗，請查看日誌了解詳情');
+      }
+    }
+    
+    async function connect() {
+      const url = document.getElementById('url').value.trim();
+      const key = document.getElementById('key').value.trim();
+      const status = document.getElementById('status');
+      
+      try {
+        if (!url || !key) {
+          alert('❌ URL 或 Key 無填');
+          return;
+        }
+
+        // 保存连接信息到本地存储
+        localStorage.setItem('nfc_checkpoint_url', url);
+        localStorage.setItem('nfc_checkpoint_key', key);
+
+        // 创建Supabase客户端
+        client = window.supabase.createClient(url, key);
+
+        status.textContent = '連線中...';
+        status.style.background = '#f59e0b';
+
+        // 测试连接
+        const { data, error } = await client
+          .from('participants')
+          .select('*')
+          .limit(1);
+
+        if (error) throw error;
+
+        // 加载检查点列表
+        await loadCheckpoints();
+
+        status.textContent = '✅ 已連線！可開始打卡';
+        status.className = 'status connected';
+        document.getElementById('checkpointBtn').disabled = false;
+
+        logMessage('✅ 連線成功，可以開始使用打卡功能');
+        
+        // 如果是NFC模式，初始化NFC读取器
+        if (currentMode === 'nfc') {
+          initNfcReader();
+        }
+        
+      } catch (e) {
+        console.error('连接错误:', e);
+        status.textContent = '❌ 連線失敗';
+        status.style.background = '#ef4444';
+        alert('連線失敗：' + (e.message || e.toString()));
+        logMessage('❌ 連線失敗：' + (e.message || e.toString()));
+      }
+    }
+    
+    // 加载检查点列表
+    async function loadCheckpoints() {
+      try {
+        const { data } = await client
+          .from('race_settings')
+          .select('checkpoint_names, race_id')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (data && data[0]) {
+          currentRaceId = data[0].race_id;
+          const select = document.getElementById('checkpoint-select');
+          select.innerHTML = '';
+          
+          data[0].checkpoint_names.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+          });
+          
+          logMessage(`✅ 加載了 ${data[0].checkpoint_names.length} 個檢查點`);
+        }
+        
+      } catch (error) {
+        console.error('加載檢查點失敗:', error);
+        logMessage(`⚠️ 加載檢查點失敗，使用默認值: ${error.message}`);
+      }
+    }
+    
+    function setMode(mode, event) {
+      currentMode = mode;
+      localStorage.setItem('nfc_checkpoint_mode', mode);
+      
+      // 更新按钮状态
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      if (event && event.target) {
+        event.target.classList.add('active');
+      } else {
+        const btn = document.querySelector(`.mode-btn[onclick*="${mode}"]`);
+        if (btn) btn.classList.add('active');
+      }
+      
+      logMessage(`🔄 切換到${mode === 'manual' ? '手動輸入' : 'NFC'}模式`);
+      
+      // 如果已连接且切换到NFC模式，初始化NFC读取器
+      if (client && mode === 'nfc') {
+        initNfcReader();
+      }
+    }
+    
+    // NFC模式权限请求函数
+    async function enableNfcMode(event) {
+      logMessage('🔄 切換到NFC模式...');
+      setMode('nfc', event);
+      
+      // 如果已连接，立即初始化NFC读取器
+      if (client) {
+        initNfcReader();
+      } else {
+        logMessage('💡 提示: 請先連線資料庫');
+      }
+    }
+    
+    function initNfcReader() {
+      // 清理之前的模拟定时器
+      if (typeof nfcReader === 'number') {
+        clearInterval(nfcReader);
+        nfcReader = null;
+      }
+      
+      // 检查浏览器是否支持Web NFC API
+      if ('NDEFReader' in window) {
+        logMessage('📱 Web NFC API 支持，正在啟用真實NFC模式...');
+        startWebNfcReader();
+      } else {
+        logMessage('⚠️  您的瀏覽器不支持Web NFC API，將使用模擬模式');
+        logMessage('   請使用Android手機上的Chrome瀏覽器以獲得真實NFC支持');
+        startSimulatedNfcReader();
+      }
+    }
+    
+    async function startWebNfcReader() {
+      try {
+        if (!('NDEFReader' in window)) {
+          logMessage('❌ 您的瀏覽器不支持Web NFC API');
+          startSimulatedNfcReader();
+          return;
+        }
+        
+        if (!window.isSecureContext) {
+          logMessage('⚠️  需要在安全上下文（HTTPS或localhost）中使用NFC');
+          startSimulatedNfcReader();
+          return;
+        }
+        
+        const reader = new NDEFReader();
+        
+        // 监听读取事件
+        reader.addEventListener('reading', (event) => {
+          try {
+            const message = event.message;
+            for (const record of message.records) {
+              // 尝试解析文本记录
+              if (record.recordType === 'text') {
+                const textDecoder = new TextDecoder(record.encoding || 'utf-8');
+                const text = textDecoder.decode(record.data);
+                logMessage(`📱 NFC標籤內容: ${text}`);
+                
+                // 提取跑手號碼
+                const bib = extractBibNumber(text);
+                if (bib) {
+                  processNfcBibNumber(bib);
+                } else {
+                  logMessage(`❌ 無法從NFC標籤提取有效號碼: ${text}`);
+                }
+                return;
+              }
+              
+              // 尝试解析URL记录
+              if (record.recordType === 'url') {
+                const urlDecoder = new TextDecoder();
+                const url = urlDecoder.decode(record.data);
+                logMessage(`📱 NFC URL標籤: ${url}`);
+                
+                // 尝试从URL中提取号码
+                const bib = extractBibNumberFromUrl(url);
+                if (bib) {
+                  processNfcBibNumber(bib);
+                } else {
+                  logMessage(`❌ 無法從URL提取有效號碼: ${url}`);
+                }
+                return;
+              }
+              
+              logMessage(`📱 未知NFC記錄類型: ${record.recordType}`);
+            }
+          } catch (error) {
+            logMessage(`❌ NFC數據解析錯誤: ${error.message}`);
+          }
+        });
+        
+        // 监听错误事件
+        reader.addEventListener('readingerror', (error) => {
+          logMessage(`❌ NFC讀取錯誤: ${error.message}`);
+        });
+        
+        // 开始扫描
+        logMessage('🔍 正在啟動NFC掃描器...');
+        await reader.scan();
+        logMessage('✅ NFC掃描已啟動，請將NFC標籤靠近手機背面');
+        
+      } catch (error) {
+        logMessage(`❌ NFC初始化失敗: ${error.message}`);
+        
+        if (error.name === 'NotAllowedError') {
+          logMessage('💡 提示: 請在瀏覽器彈出的提示中允許網站訪問NFC設備');
+        } else if (error.name === 'SecurityError') {
+          logMessage('💡 提示: NFC功能需要在安全上下文（HTTPS或localhost）中使用');
+        }
+        
+        // 切换到模拟模式
+        startSimulatedNfcReader();
+      }
+    }
+    
+    function startSimulatedNfcReader() {
+      logMessage('🎮 啟用NFC模擬模式，每5秒隨機生成號碼');
+      
+      // 每5秒模拟读取一次NFC标签
+      nfcReader = setInterval(() => {
+        if (Math.random() > 0.6) { // 40%概率读取成功
+          const testBib = String(Math.floor(Math.random() * 999) + 1).padStart(3, '0');
+          logMessage(`🎮 模擬NFC讀取: ${testBib}`);
+          processNfcBibNumber(testBib);
+        }
+      }, 5000);
+    }
+    
+    function extractBibNumber(text) {
+      // 尝试从文本中提取数字号码
+      const match = text.match(/\d{1,3}/);
+      if (match) {
+        return String(parseInt(match[0])).padStart(3, '0');
+      }
+      return null;
+    }
+    
+    function extractBibNumberFromUrl(url) {
+      // 尝试从URL中提取号码
+      const pathMatch = url.match(/\/bib\/(\d{1,3})/);
+      if (pathMatch) {
+        return String(parseInt(pathMatch[1])).padStart(3, '0');
+      }
+      
+      const queryMatch = url.match(/bib=(\d{1,3})/);
+      if (queryMatch) {
+        return String(parseInt(queryMatch[1])).padStart(3, '0');
+      }
+      
+      return null;
+    }
+    
+    function processNfcBibNumber(bib) {
+      if (bib) {
+        lastBibNumber = bib;
+        document.getElementById('lastBib').textContent = bib;
+        localStorage.setItem('nfc_last_bib', bib);
+        
+        // 自动打卡
+        hitCheckpoint();
+      }
+    }
+    
+    // 打卡函数
+    async function hitCheckpoint() {
+      if (!client) {
+        alert('請先連線資料庫');
+        return;
+      }
+      
+      if (!lastBibNumber && currentMode === 'nfc') {
+        logMessage('❌ 未檢測到號碼，請再試一次');
+        return;
+      }
+      
+      // 手動模式下要求輸入號碼
+      let bibNumber = lastBibNumber;
+      if (currentMode === 'manual') {
+        const input = prompt('請輸入跑手號碼:');
+        if (!input) return;
+        
+        // 格式化為3位數字
+        bibNumber = String(parseInt(input)).padStart(3, '0');
+        if (isNaN(parseInt(bibNumber))) {
+          alert('請輸入有效的數字');
+          return;
+        }
+        
+        lastBibNumber = bibNumber;
+        document.getElementById('lastBib').textContent = bibNumber;
+        localStorage.setItem('nfc_last_bib', bibNumber);
+      }
+      
+      // 获取当前选择的检查点
+      const checkpoint = document.getElementById('checkpoint-select').value;
+      
+      try {
+        logMessage(`📌 正在記錄 ${bibNumber} 在 ${checkpoint} 的打卡...`);
+        
+        // 插入打卡记录
+        const { data, error } = await client
+          .from('events')
+          .insert([{
+            bib_number: bibNumber,
+            checkpoint: checkpoint,
+            race_id: currentRaceId
+          }])
+          .select();
+        
+        if (error) throw error;
+        
+        logMessage(`✅ 成功記錄: ${bibNumber} 在 ${checkpoint} 打卡`);
+        
+        // 检查是否为已知参赛者
+        const { data: participants } = await client
+          .from('participants')
+          .select('name')
+          .eq('bib_number', bibNumber)
+          .single();
+          
+        if (participants) {
+          logMessage(`👤 跑手: ${participants.name}`);
+        } else {
+          logMessage(`⚠️ 未找到號碼 ${bibNumber} 的跑手信息`);
+        }
+        
+      } catch (e) {
+        console.error('打卡错误:', e);
+        logMessage(`❌ 打卡失敗: ${e.message}`);
+        alert('打卡失敗：' + e.message);
+      }
+    }
+    
+    // 日志函数
+    function logMessage(message) {
+      const log = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      log.innerHTML += `[${time}] ${message}<br>`;
+      log.scrollTop = log.scrollHeight;
+      console.log(`[${time}] ${message}`);
+    }
+  </script>
+</body>
+</html>
