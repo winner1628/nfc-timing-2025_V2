@@ -38,8 +38,8 @@
     <h1>🏃‍♂️ NFC 計時站</h1>
     
     <div id="connectionSection" style="display: none;">
-      <input id="url" placeholder="https://wceywyxwyygbwfodjdpp.supabase.co" value="https://vzulldiiuguzobjcpikh.supabase.co">
-      <input id="key" placeholder="sb_publishable_BWBxXzGk8bRGql3VbkCqbA_IZOfH5rc" type="password" value="sb_publishable_SBltOg1AOREur1bYWij2kg_BneOwzh4">
+      <input id="url" placeholder="https://your-supabase-url.supabase.co" value="">
+      <input id="key" placeholder="your-supabase-key" type="password" value="">
       <button onclick="connect()">🔗 連線資料庫</button>
       <button onclick="testConnection()" style="background: #6366f1; margin-top: 8px;">🔍 測試連線</button>
     </div>
@@ -55,7 +55,7 @@
     <div class="checkpoint-selector">
       <h3>選擇檢查點</h3>
       <div id="checkpointGrid" class="checkpoint-grid">
-        <!-- 檢查點按鈕將動態生成 -->
+        <!-- 检查点按钮将动态生成 -->
         <button class="checkpoint-btn start" onclick="selectCheckpoint('START')">🚀 起點</button>
         <button class="checkpoint-btn finish" onclick="selectCheckpoint('FINISH')">🏁 終點</button>
       </div>
@@ -73,7 +73,7 @@
   </div>
 
   <script>
-    // 全局變量
+    // 全局变量
     let client = null;
     let currentMode = 'manual';
     let lastBibNumber = '';
@@ -84,32 +84,21 @@
       { code: 'FINISH', name: '終點', color: '#ef4444' }
     ];
     
-    // 頁面加載時自動連接
+    // 页面加载时自动连接
     window.addEventListener('DOMContentLoaded', () => {
-      // 嘗試從本地存儲獲取連接信息
+      // 尝试从本地存储获取连接信息
       const savedUrl = localStorage.getItem('nfc_checkpoint_url');
       const savedKey = localStorage.getItem('nfc_checkpoint_key');
       const savedMode = localStorage.getItem('nfc_checkpoint_mode');
       const savedLastBib = localStorage.getItem('nfc_last_bib');
       
-      // 設置默認連接信息（如果本地存儲中沒有用）
-      const defaultUrl = 'https://wceywyxwyygbwfodjdpp.supabase.co';
-      const defaultKey = 'sb_publishable_BWBxXzGk8bRGql3VbkCqbA_IZOfH5rc';
-      
       if (savedUrl && savedKey) {
         document.getElementById('url').value = savedUrl;
         document.getElementById('key').value = savedKey;
-      } else {
-        // 使用默認連接信息
-        document.getElementById('url').value = defaultUrl;
-        document.getElementById('key').value = defaultKey;
-        // 保存默認連接信息到本地存儲
-        localStorage.setItem('nfc_checkpoint_url', defaultUrl);
-        localStorage.setItem('nfc_checkpoint_key', defaultKey);
       }
       
-      // 立即自動連接數據庫
-      setTimeout(() => connect(), 500); // 延遲0.5秒自動連接
+      // 立即自动连接数据库
+      setTimeout(() => connect(), 500);
       
       if (savedMode) {
         setMode(savedMode);
@@ -121,111 +110,41 @@
       }
     });
     
-    // 切換連接設置區域的顯示/隱藏
+    // 切换连接设置区域的显示/隐藏
     function toggleConnectionSection() {
       const section = document.getElementById('connectionSection');
-      if (section.style.display === 'none') {
-        section.style.display = 'block';
-        logMessage('⚙️ 顯示連線設置');
-      } else {
-        section.style.display = 'none';
-        logMessage('⚙️ 隱藏連線設置');
-      }
+      section.style.display = section.style.display === 'none' ? 'block' : 'none';
+      logMessage(section.style.display === 'block' ? '⚙️ 顯示連線設置' : '⚙️ 隱藏連線設置');
     }
     
-    // 測試連接函數
+    // 测试连接函数
     async function testConnection() {
-      console.log('=== 測試連接函數被調用 ===');
-      
       try {
         const url = document.getElementById('url').value.trim();
         const key = document.getElementById('key').value.trim();
         
-        console.log('URL:', url);
-        console.log('Key length:', key ? key.length : 0);
-        
         if (!url || !key) {
-          const msg = '❌ 請填寫URL和Key';
-          console.log(msg);
-          alert(msg);
+          alert('❌ 請填寫URL和Key');
           return;
         }
         
-        // 顯示測試狀態
         logMessage('🔍 開始測試連線...');
+        const testClient = window.supabase.createClient(url, key);
         
-        // 檢查瀏覽器環境
-        console.log('瀏覽器信息:', navigator.userAgent);
-        console.log('是否HTTPS:', window.location.protocol === 'https:');
+        const { data, error } = await testClient
+          .from('participants')
+          .select('*')
+          .limit(1)
+          .timeout(5000);
         
-        // 檢查Supabase SDK
-        console.log('window.supabase:', window.supabase);
-        if (!window.supabase) {
-          throw new Error('❌ Supabase SDK未加載，請檢查網絡連接或CDN鏈接');
-        }
-        
-        logMessage('✅ Supabase SDK已加載');
-        
-        try {
-          // 創建臨時客戶端測試連接
-          console.log('創建Supabase客戶端...');
-          const testClient = window.supabase.createClient(url, key);
-          console.log('Supabase客戶端創建成功:', testClient);
-          logMessage('✅ 成功創建Supabase客戶端');
-          
-          // 測試數據庫連接
-          logMessage('🔍 測試數據庫連線...');
-          console.log('執行數據庫查詢...');
-          
-          const startTime = Date.now();
-          const { data, error } = await testClient
-            .from('participants')
-            .select('*')
-            .limit(1)
-            .timeout(5000); // 5秒超時
-          const endTime = Date.now();
-          
-          console.log('查詢耗時:', endTime - startTime, 'ms');
-          console.log('查詢結果 - data:', data);
-          console.log('查詢結果 - error:', error);
-          
-          if (error) {
-            console.error('數據庫查詢錯誤:', error);
-            logMessage(`❌ 數據庫查詢失敗: ${error.message}`);
-            logMessage(`錯誤代碼: ${error.code || '未知'}`);
-            
-            if (error.code === '42P01') {
-              logMessage('💡 提示: 可能是表不存在，請確認數據庫結構');
-            } else if (error.code === '401') {
-              logMessage('💡 提示: 可能是API Key無效或已過期');
-            } else if (error.code === '403') {
-              logMessage('💡 提示: 可能是權限不足或IP被限制');
-            } else if (error.message.includes('network')) {
-              logMessage('💡 提示: 可能是網絡問題，請檢查網絡連接');
-            } else {
-              logMessage('💡 提示: 請檢查Supabase項目設置和網絡連接');
-            }
-            
-            alert('測試失敗，請查看日誌了解詳情');
-            return;
-          }
-          
-          logMessage(`✅ 數據庫連線成功！返回了 ${data ? data.length : 0} 條數據`);
-          logMessage('🎉 所有測試通過，可以進行正式連線');
-          alert('✅ 測試成功！連線信息正確');
-          
-        } catch (dbError) {
-          console.error('數據庫操作異常:', dbError);
-          throw dbError;
-        }
+        if (error) throw error;
+        logMessage(`✅ 數據庫連線成功！返回了 ${data ? data.length : 0} 條數據`);
+        alert('✅ 測試成功！連線信息正確');
         
       } catch (e) {
-        console.error('測試過程中發生異常:', e);
-        const errorMsg = e.message || e.toString();
-        console.error('錯誤詳情:', errorMsg);
-        logMessage(`❌ 測試失敗: ${errorMsg}`);
-        logMessage('💡 建議檢查瀏覽器控制台獲取更多詳細信息');
-        alert('測試失敗，請查看日誌和瀏覽器控制台了解詳情');
+        console.error('測試失敗:', e);
+        logMessage(`❌ 測試失敗: ${e.message}`);
+        alert('測試失敗，請查看日誌了解詳情');
       }
     }
     
@@ -240,20 +159,16 @@
           return;
         }
 
-        // 保存連接信息到本地存儲
         localStorage.setItem('nfc_checkpoint_url', url);
         localStorage.setItem('nfc_checkpoint_key', key);
 
-        // 由 CDN 引入，必須用 window.supabase.createClient
         client = window.supabase.createClient(url, key);
 
         status.textContent = '連線中...';
         status.style.background = '#f59e0b';
 
-        // 加載檢查點配置
         await loadCheckpoints();
         
-        // 測試連接 - 嘗試讀取participants表
         const { data, error } = await client
           .from('participants')
           .select('*')
@@ -267,13 +182,12 @@
 
         logMessage('✅ 連線成功，可以開始使用打卡功能');
         
-        // 如果是NFC模式，初始化NFC讀取器
         if (currentMode === 'nfc') {
           initNfcReader();
         }
         
       } catch (e) {
-        console.error('連接錯誤:', e);
+        console.error('连接错误:', e);
         status.textContent = '❌ 連線失敗';
         status.style.background = '#ef4444';
         alert('連線失敗：' + (e.message || e.toString()));
@@ -281,7 +195,7 @@
       }
     }
     
-    // 加載檢查點配置
+    // 加载检查点配置
     async function loadCheckpoints() {
       if (!client) return;
       
@@ -292,28 +206,25 @@
         .order('order_index');
       
       if (error) {
-        console.error('加載檢查點配置失敗:', error);
-        logMessage('⚠️ 無法加載檢查點配置，使用默認設置');
-        // 保持默認配置
+        console.error('加载检查点配置失败:', error);
+        logMessage('⚠️ 无法加载检查点配置，使用默认设置');
       } else if (data.length > 0) {
         checkpoints = data.map(cp => ({
           code: cp.code,
           name: cp.name,
           color: cp.code === 'START' ? '#10b981' : cp.code === 'FINISH' ? '#ef4444' : '#3b82f6'
         }));
-        logMessage(`✅ 加載了 ${checkpoints.length} 個檢查點配置`);
+        logMessage(`✅ 加载了 ${checkpoints.length} 个检查点配置`);
       }
       
-      // 更新檢查點按鈕
       updateCheckpointButtons();
       
-      // 如果還沒有選擇檢查點，默認選擇第一個
       if (!currentCheckpoint && checkpoints.length > 0) {
         selectCheckpoint(checkpoints[0].code);
       }
     }
     
-    // 更新檢查點按鈕
+    // 更新检查点按钮
     function updateCheckpointButtons() {
       const grid = document.getElementById('checkpointGrid');
       grid.innerHTML = '';
@@ -328,7 +239,7 @@
       });
     }
     
-    // 選擇檢查點
+    // 选择检查点
     function selectCheckpoint(checkpointCode) {
       const checkpoint = checkpoints.find(cp => cp.code === checkpointCode);
       if (!checkpoint) return;
@@ -336,7 +247,6 @@
       currentCheckpoint = checkpointCode;
       document.getElementById('currentCheckpoint').textContent = checkpoint.name;
       
-      // 更新按鈕樣式
       document.querySelectorAll('.checkpoint-btn').forEach(btn => {
         btn.style.opacity = '0.7';
         btn.style.transform = 'scale(1)';
@@ -353,7 +263,7 @@
       logMessage(`🔄 已選擇檢查點: ${checkpoint.name}`);
     }
     
-    // 打卡當前選擇的檢查點
+    // 打卡当前选择的检查点
     function punchCurrentCheckpoint() {
       if (!currentCheckpoint) {
         alert('請先選擇檢查點');
@@ -369,40 +279,85 @@
       hitCheckpoint(currentCheckpoint, bib);
     }
     
+    // 核心打卡逻辑（使用bib_number统一字段）
+    async function hitCheckpoint(checkpoint, bib) {
+      if (!client) {
+        alert('請先連線資料庫');
+        return;
+      }
+
+      try {
+        logMessage(`⏳ 正在打卡 ${checkpoint} - ${bib}...`);
+        
+        // 1. 检查参赛者是否存在（使用bib_number）
+        const { data: existingParticipant } = await client
+          .from('participants')
+          .select('*')
+          .eq('bib_number', bib)  // 修复：使用bib_number代替bib
+          .single();
+
+        // 2. 如果不存在，自动创建参赛者
+        if (!existingParticipant) {
+          logMessage(`⚠️ 參賽者 ${bib} 不存在，自動建立記錄`);
+          const { error: insertError } = await client
+            .from('participants')
+            .insert([{ 
+              bib_number: bib,  // 修复：使用bib_number代替bib
+              name: `參賽者 ${bib}` 
+            }]);
+
+          if (insertError) throw insertError;
+        }
+
+        // 3. 记录打卡信息
+        const { error: checkinError } = await client
+          .from('checkins')
+          .insert([{
+            bib_number: bib,  // 修复：使用bib_number代替bib
+            checkpoint: checkpoint,
+            time: new Date().toISOString()
+          }]);
+
+        if (checkinError) throw checkinError;
+
+        // 4. 更新UI
+        logMessage(`✅ 打卡成功！${checkpoint} - ${bib}`);
+        document.getElementById('bibInput').value = '';
+        lastBibNumber = bib;
+        document.getElementById('lastBib').textContent = bib;
+        localStorage.setItem('nfc_last_bib', bib);
+
+      } catch (e) {
+        logMessage(`❌ 打卡失敗: ${e.message}`);
+        console.error('Check-in error:', e);
+      }
+    }
+    
     function setMode(mode, event) {
       currentMode = mode;
       localStorage.setItem('nfc_checkpoint_mode', mode);
       
-      // 更新按鈕狀態
       document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-      if (event && event.target) {
-        event.target.classList.add('active');
-      } else {
-        // 如果是自動設置模式，找到對應按鈕並激活
+      if (event?.target) event.target.classList.add('active');
+      else {
         const btn = document.querySelector(`.mode-btn[onclick*="${mode}"]`);
         if (btn) btn.classList.add('active');
       }
       
       logMessage(`🔄 切換到${mode === 'manual' ? '手動輸入' : 'NFC'}模式`);
       
-      // 如果已連接且切換到NFC模式，初始化NFC讀取器
       if (client && mode === 'nfc') {
         initNfcReader();
       } else if (mode !== 'nfc' && typeof nfcReader === 'number') {
-        // 清除模擬定時器
         clearInterval(nfcReader);
         nfcReader = null;
       }
     }
     
-    // NFC模式權限請求函數
     async function enableNfcMode(event) {
       logMessage('🔄 切換到NFC模式...');
-      
-      // 直接切換到NFC模式，讓initNfcReader處理具體的初始化邏輯
       setMode('nfc', event);
       
-      // 如果已連接，立即初始化NFC讀取器
       if (client) {
         initNfcReader();
       } else {
@@ -411,13 +366,11 @@
     }
     
     function initNfcReader() {
-      // 清理之前的模擬定時器（如果存在）
       if (typeof nfcReader === 'number') {
         clearInterval(nfcReader);
         nfcReader = null;
       }
       
-      // 檢查瀏覽器是否支持Web NFC API
       if ('NDEFReader' in window) {
         logMessage('📱 Web NFC API 支持，正在啟用真實NFC模式...');
         startWebNfcReader();
@@ -430,36 +383,29 @@
     
     async function startWebNfcReader() {
       try {
-        // 檢查瀏覽器支持
         if (!('NDEFReader' in window)) {
           logMessage('❌ 您的瀏覽器不支持Web NFC API');
-          logMessage('   請使用Android手機上的Chrome瀏覽器（89+版本）');
           startSimulatedNfcReader();
           return;
         }
         
-        // 檢查安全上下文
         if (!window.isSecureContext) {
           logMessage('⚠️  需要在安全上下文（HTTPS或localhost）中使用NFC');
-          logMessage('   請將網站部署到HTTPS服務器或使用localhost');
           startSimulatedNfcReader();
           return;
         }
         
         const reader = new NDEFReader();
         
-        // 監聽讀取事件
         reader.addEventListener('reading', (event) => {
           try {
             const message = event.message;
             for (const record of message.records) {
-              // 嘗試解析文本記錄
               if (record.recordType === 'text') {
                 const textDecoder = new TextDecoder(record.encoding || 'utf-8');
                 const text = textDecoder.decode(record.data);
                 logMessage(`📱 NFC標籤內容: ${text}`);
                 
-                // 提取跑手號碼（假設標籤內容就是號碼）
                 const bib = extractBibNumber(text);
                 if (bib) {
                   processNfcBibNumber(bib);
@@ -468,195 +414,55 @@
                 }
                 return;
               }
-              
-              // 嘗試解析URL記錄
-              if (record.recordType === 'url') {
-                const textDecoder = new TextDecoder();
-                const url = textDecoder.decode(record.data);
-                logMessage(`🌐 NFC標籤URL: ${url}`);
-                
-                // 從URL中提取號碼（假設URL包含號碼信息）
-                const bib = extractBibFromUrl(url);
-                if (bib) {
-                  processNfcBibNumber(bib);
-                } else {
-                  logMessage(`❌ 無法從URL提取有效號碼: ${url}`);
-                }
-                return;
-              }
             }
-            
-            logMessage('❌ 未識別的NFC標籤格式');
           } catch (e) {
             logMessage(`❌ NFC讀取錯誤: ${e.message}`);
           }
         });
         
-        // 監聽錯誤事件
-        reader.addEventListener('error', (event) => {
-          logMessage(`❌ NFC讀取器錯誤: ${event.error.message}`);
-        });
-        
-        // 請求掃描NFC
         await reader.scan();
         logMessage('✅ NFC讀取器已啟動，請靠近NFC標籤');
         
       } catch (e) {
-        logMessage(`❌ 啟動NFC讀取器失敗: ${e.message}`);
-        console.error('NFC初始化錯誤:', e);
-        
-        // 如果啟動失敗，使用模擬模式
-        if (currentMode === 'nfc') {
-          logMessage('⚠️  將切換到NFC模擬模式');
-          startSimulatedNfcReader();
-        }
+        logMessage(`❌ NFC初始化失敗: ${e.message}`);
+        startSimulatedNfcReader();
       }
     }
     
-    // 啟動模擬NFC讀取器（用於測試）
     function startSimulatedNfcReader() {
-      logMessage('✅ 已啟動NFC模擬模式，隨機生成測試號碼');
+      logMessage('✅ 模擬NFC模式已啟動（每5秒模擬一個號碼）');
       
-      // 每5秒生成一個隨機號碼
       nfcReader = setInterval(() => {
-        // 生成3位數的隨機號碼
+        // 生成随机模拟号码
         const randomBib = Math.floor(100 + Math.random() * 900).toString();
-        logMessage(`📱 [模擬] 檢測到NFC標籤，號碼: ${randomBib}`);
+        logMessage(`📱 [模擬] 檢測到NFC標籤: ${randomBib}`);
         processNfcBibNumber(randomBib);
       }, 5000);
     }
     
-    // 處理NFC讀取到的號碼
-    function processNfcBibNumber(bib) {
-      if (!currentCheckpoint) {
-        logMessage('❌ 請先選擇檢查點');
-        return;
-      }
-      
-      // 顯示號碼到輸入框
-      document.getElementById('bibInput').value = bib;
-      
-      // 自動打卡
-      hitCheckpoint(currentCheckpoint, bib);
-    }
-    
-    // 從文本中提取號碼
     function extractBibNumber(text) {
-      // 簡單提取數字（可根據實際格式調整）
+      // 提取数字作为号码布编号
       const match = text.match(/\d+/);
       return match ? match[0] : null;
     }
     
-    // 從URL中提取號碼
-    function extractBibFromUrl(url) {
-      // 嘗試從URL參數中提取bib或number參數
-      const params = new URLSearchParams(new URL(url).search);
-      return params.get('bib') || params.get('number') || extractBibNumber(url);
-    }
-    
-    // 執行打卡操作
-    async function hitCheckpoint(checkpointCode, bib) {
-      if (!client) {
-        alert('未連接到資料庫，請先連線');
+    function processNfcBibNumber(bib) {
+      if (!currentCheckpoint) {
+        logMessage('⚠️ 請先選擇檢查點');
         return;
       }
       
-      if (!checkpointCode || !bib) {
-        logMessage('❌ 檢查點或號碼布編號為空');
-        return;
-      }
-      
-      try {
-        logMessage(`⏳ 正在打卡 ${checkpointCode} - ${bib}...`);
-        
-        // 檢查參賽者是否存在
-        const { data: participantData, error: participantError } = await client
-          .from('participants')
-          .select('*')
-          .eq('bib', bib)
-          .single();
-          
-        if (participantError) {
-          // 如果參賽者不存在，詢問是否添加
-          const addNew = confirm(`號碼 ${bib} 不存在，是否添加為新參賽者？`);
-          if (!addNew) {
-            logMessage('❌ 用戶取消添加新參賽者，打卡作廢');
-            return;
-          }
-          
-          // 添加新參賽者
-          const name = prompt(`請輸入號碼 ${bib} 的參賽者姓名：`);
-          if (!name) {
-            logMessage('❌ 未輸入姓名，打卡作廢');
-            return;
-          }
-          
-          const { error: insertError } = await client
-            .from('participants')
-            .insert([{ bib, name }]);
-            
-          if (insertError) {
-            throw new Error(`添加參賽者失敗: ${insertError.message}`);
-          }
-          
-          logMessage(`✅ 已添加新參賽者: ${bib} - ${name}`);
-        }
-        
-        // 執行打卡
-        const { error } = await client
-          .from('checkins')
-          .insert([
-            { 
-              bib: bib, 
-              checkpoint_code: checkpointCode,
-              checkin_time: new Date()
-            }
-          ]);
-        
-        if (error) {
-          if (error.code === '23505') { // 唯一約束錯誤
-            logMessage(`❌ 重複打卡：${bib} 已在 ${checkpointCode} 打卡過`);
-            alert('該選手已在此檢查點打卡過');
-          } else {
-            throw error;
-          }
-          return;
-        }
-        
-        // 打卡成功
-        const checkpoint = checkpoints.find(cp => cp.code === checkpointCode) || { name: checkpointCode };
-        logMessage(`✅ 打卡成功！${checkpoint.name} - ${bib}`);
-        
-        // 更新上次打卡號碼
-        lastBibNumber = bib;
-        document.getElementById('lastBib').textContent = bib;
-        localStorage.setItem('nfc_last_bib', bib);
-        
-        // 清空輸入框
-        document.getElementById('bibInput').value = '';
-        
-      } catch (e) {
-        console.error('打卡錯誤:', e);
-        logMessage(`❌ 打卡失敗: ${e.message}`);
-        alert('打卡失敗：' + e.message);
-      }
+      document.getElementById('bibInput').value = bib;
+      hitCheckpoint(currentCheckpoint, bib);
     }
     
-    // 記錄日誌
     function logMessage(message) {
       const logElement = document.getElementById('log');
-      const timestamp = new Date().toLocaleTimeString();
+      const timestamp = new Date().toLocaleTimeString('zh-HK');
       const logEntry = document.createElement('div');
       logEntry.textContent = `[${timestamp}] ${message}`;
-      
-      // 添加顏色樣式
-      if (message.includes('✅')) logEntry.style.color = '#10b981';
-      else if (message.includes('❌')) logEntry.style.color = '#ef4444';
-      else if (message.includes('⚠️')) logEntry.style.color = '#f59e0b';
-      else if (message.includes('🔍') || message.includes('⚙️')) logEntry.style.color = '#6366f1';
-      
       logElement.appendChild(logEntry);
-      logElement.scrollTop = logElement.scrollHeight; // 滾動到底部
+      logElement.scrollTop = logElement.scrollHeight;
     }
   </script>
 </body>
