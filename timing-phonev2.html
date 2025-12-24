@@ -31,7 +31,6 @@
     .last-bib { margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; color: #1e293b; font-weight: bold; }
     .checkpoint-selector { margin: 20px 0; }
     .checkpoint-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 10px 0; }
-    .error-notice { color: #dc2626; padding: 10px; margin: 10px 0; background: #fee2e2; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -42,10 +41,6 @@
       <input id="url" placeholder="https://wceywyxwyygbwfodjdpp.supabase.co" value="https://vzulldiiuguzobjcpikh.supabase.co">
       <input id="key" placeholder="sb_publishable_BWBxXzGk8bRGql3VbkCqbA_IZOfH5rc" type="password" value="sb_publishable_SBltOg1AOREur1bYWij2kg_BneOwzh4">
       <button onclick="connect()">🔗 連線資料庫</button>
-      <button onclick="testConnection()" style="background: #6366f1; margin-top: 8px;">🔍 測試連線</button>
-      <div id="tableErrorNotice" class="error-notice" style="display: none;">
-        ⚠️ 檢測到缺少必要的數據表，請使用管理頁面創建或聯繫管理員
-      </div>
     </div>
     <button onclick="toggleConnectionSection()" style="background: #6b7280; margin-bottom: 12px;">⚙️ 設置</button>
     
@@ -59,7 +54,6 @@
     <div class="checkpoint-selector">
       <h3>選擇檢查點</h3>
       <div id="checkpointGrid" class="checkpoint-grid">
-        <!-- 检查点按钮将动态生成 -->
         <button class="checkpoint-btn start" onclick="selectCheckpoint('START')">🚀 起點</button>
         <button class="checkpoint-btn finish" onclick="selectCheckpoint('FINISH')">🏁 終點</button>
       </div>
@@ -97,8 +91,8 @@
       const savedLastBib = localStorage.getItem('nfc_last_bib');
       
       // 设置默认连接信息（如果本地存储中没有）
-      const defaultUrl = 'https://vzulldiiuguzobjcpikh.supabase.co';
-      const defaultKey = 'sb_publishable_SBltOg1AOREur1bYWij2kg_BneOwzh4';
+      const defaultUrl = 'https://wceywyxwyygbwfodjdpp.supabase.co';
+      const defaultKey = 'sb_publishable_BWBxXzGk8bRGql3VbkCqbA_IZOfH5rc';
       
       if (savedUrl && savedKey) {
         document.getElementById('url').value = savedUrl;
@@ -137,127 +131,10 @@
       }
     }
     
-    // 测试连接函数 - 增强版，增加表存在性检查
-    async function testConnection() {
-      console.log('=== 测试连接函数被调用 ===');
-      
-      try {
-        const url = document.getElementById('url').value.trim();
-        const key = document.getElementById('key').value.trim();
-        const tableErrorNotice = document.getElementById('tableErrorNotice');
-        tableErrorNotice.style.display = 'none';
-        
-        if (!url || !key) {
-          const msg = '❌ 請填寫URL和Key';
-          console.log(msg);
-          alert(msg);
-          return;
-        }
-        
-        // 显示测试状态
-        logMessage('🔍 開始測試連線...');
-        
-        // 检查浏览器环境
-        console.log('浏览器信息:', navigator.userAgent);
-        console.log('是否HTTPS:', window.location.protocol === 'https:');
-        
-        // 检查Supabase SDK
-        console.log('window.supabase:', window.supabase);
-        if (!window.supabase) {
-          throw new Error('❌ Supabase SDK未加載，請檢查網絡連接或CDN鏈接');
-        }
-        
-        logMessage('✅ Supabase SDK已加載');
-        
-        try {
-          // 创建临时客户端测试连接
-          console.log('創建Supabase客戶端...');
-          const testClient = window.supabase.createClient(url, key);
-          console.log('Supabase客戶端創建成功:', testClient);
-          logMessage('✅ 成功創建Supabase客戶端');
-          
-          // 测试participants表
-          logMessage('🔍 測試participants表...');
-          const { error: participantsError } = await testClient
-            .from('participants')
-            .select('*')
-            .limit(1)
-            .timeout(3000);
-          
-          if (participantsError) {
-            logMessage(`⚠️ participants表錯誤: ${participantsError.message}`);
-            if (participantsError.code === 'PGRST205') {
-              logMessage('💡 提示: participants表不存在');
-              tableErrorNotice.style.display = 'block';
-            }
-          } else {
-            logMessage('✅ participants表可訪問');
-          }
-          
-          // 重点测试checkpoint_configs表
-          logMessage('🔍 測試checkpoint_configs表...');
-          const { error: cpError } = await testClient
-            .from('checkpoint_configs')
-            .select('*')
-            .limit(1)
-            .timeout(3000);
-          
-          if (cpError) {
-            logMessage(`⚠️ checkpoint_configs表錯誤: ${cpError.message}`);
-            if (cpError.code === 'PGRST205') {
-              logMessage('💡 提示: checkpoint_configs表不存在，請使用管理頁面創建');
-              tableErrorNotice.style.display = 'block';
-            }
-          } else {
-            logMessage('✅ checkpoint_configs表可訪問');
-          }
-          
-          // 测试checkins表
-          logMessage('🔍 測試checkins表...');
-          const { error: checkinsError } = await testClient
-            .from('checkins')
-            .select('*')
-            .limit(1)
-            .timeout(3000);
-          
-          if (checkinsError) {
-            logMessage(`⚠️ checkins表錯誤: ${checkinsError.message}`);
-            if (checkinsError.code === 'PGRST205') {
-              logMessage('💡 提示: checkins表不存在');
-              tableErrorNotice.style.display = 'block';
-            }
-          } else {
-            logMessage('✅ checkins表可訪問');
-          }
-          
-          // 如果所有表都正常
-          if (!participantsError && !cpError && !checkinsError) {
-            logMessage('🎉 所有必要表都可訪問，測試通過');
-            alert('✅ 測試成功！連線信息正確');
-          } else {
-            logMessage('⚠️ 部分表存在問題，請參考上文提示解決');
-            alert('⚠️ 測試完成，但檢測到潛在問題，請查看日誌');
-          }
-          
-        } catch (dbError) {
-          console.error('數據庫操作異常:', dbError);
-          throw dbError;
-        }
-        
-      } catch (e) {
-        console.error('測試過程中發生異常:', e);
-        const errorMsg = e.message || e.toString();
-        logMessage(`❌ 測試失敗: ${errorMsg}`);
-        alert('測試失敗，請查看日誌了解詳情');
-      }
-    }
-    
     async function connect() {
       const url = document.getElementById('url').value.trim();
       const key = document.getElementById('key').value.trim();
       const status = document.getElementById('status');
-      const tableErrorNotice = document.getElementById('tableErrorNotice');
-      tableErrorNotice.style.display = 'none';
       
       try {
         if (!url || !key) {
@@ -275,16 +152,13 @@
         status.textContent = '連線中...';
         status.style.background = '#f59e0b';
 
-        // 先检查必要的表是否存在
-        await checkRequiredTables();
-        
         // 加载检查点配置
         await loadCheckpoints();
         
-        // 测试连接 - 尝试读取participants表
+        // 测试连接 - 尝试读取participants表，使用v2版本的超时设置方式
         const { data, error } = await client
           .from('participants')
-          .select('*')
+          .select('*', { timeout: 5000 }) // 5秒超时设置
           .limit(1);
 
         if (error) throw error;
@@ -304,94 +178,40 @@
         console.error('连接错误:', e);
         status.textContent = '❌ 連線失敗';
         status.style.background = '#ef4444';
+        alert('連線失敗：' + (e.message || e.toString()));
         logMessage('❌ 連線失敗：' + (e.message || e.toString()));
-        
-        // 特别处理表不存在的错误
-        if (e.code === 'PGRST205') {
-          logMessage('💡 請使用管理頁面創建缺少的表');
-          tableErrorNotice.style.display = 'block';
-        }
       }
     }
     
-    // 检查必要的表是否存在
-    async function checkRequiredTables() {
-      const requiredTables = ['participants', 'checkpoint_configs', 'checkins'];
-      
-      for (const table of requiredTables) {
-        const { error } = await client
-          .from(table)
-          .select('*')
-          .limit(1)
-          .timeout(3000);
-          
-        if (error && error.code === 'PGRST205') {
-          // 表不存在时，尝试通过管理员页面的逻辑创建（仅基础结构）
-          if (table === 'checkpoint_configs') {
-            logMessage(`⚠️ 檢測到${table}表不存在，嘗試創建默認表結構...`);
-            await createDefaultCheckpointTable();
-          } else {
-            throw new Error(`缺少必要的表: ${table}`);
-          }
-        }
-      }
-    }
-    
-    // 创建默认的checkpoint_configs表（如果不存在）
-    async function createDefaultCheckpointTable() {
-      try {
-        // 使用Supabase的RPC功能尝试创建表（需要管理员页面已设置函数或直接通过SQL）
-        // 这里采用降级策略：不直接创建表，而是提示用户通过管理页面操作
-        logMessage('💡 請使用管理頁面的"保存检查点配置"按鈕創建表');
-        throw new Error('checkpoint_configs表不存在');
-      } catch (e) {
-        console.error('创建表失败:', e);
-        throw e;
-      }
-    }
-    
-    // 加载检查点配置 - 增强错误处理
+    // 加载检查点配置
     async function loadCheckpoints() {
       if (!client) return;
       
-      try {
-        const { data, error } = await client
-          .from('checkpoint_configs')
-          .select('*')
-          .eq('event_id', 'default')
-          .order('order_index');
-        
-        if (error) {
-          console.error('加载检查点配置失败:', error);
-          logMessage(`⚠️ 检查点配置加载失败: ${error.message}`);
-          
-          // 表不存在的特殊处理
-          if (error.code === 'PGRST205') {
-            logMessage('💡 请通过管理页面创建检查点配置');
-            document.getElementById('tableErrorNotice').style.display = 'block';
-          }
-          // 保持默认配置
-        } else if (data.length > 0) {
-          checkpoints = data.map(cp => ({
-            code: cp.code,
-            name: cp.name,
-            color: cp.code === 'START' ? '#10b981' : cp.code === 'FINISH' ? '#ef4444' : '#3b82f6'
-          }));
-          logMessage(`✅ 加载了 ${checkpoints.length} 个检查点配置`);
-        } else {
-          logMessage('⚠️ 检查点配置为空，使用默认设置');
-        }
-        
-        // 更新检查点按钮
-        updateCheckpointButtons();
-        
-        // 如果还没有选择检查点，默认选择第一个
-        if (!currentCheckpoint && checkpoints.length > 0) {
-          selectCheckpoint(checkpoints[0].code);
-        }
-      } catch (e) {
-        console.error('加载检查点时发生异常:', e);
-        logMessage(`❌ 加载检查点时出错: ${e.message}`);
+      const { data, error } = await client
+        .from('checkpoint_configs')
+        .select('*', { timeout: 3000 }) // 3秒超时设置
+        .eq('event_id', 'default')
+        .order('order_index');
+      
+      if (error) {
+        console.error('加载检查点配置失败:', error);
+        logMessage('⚠️ 无法加载检查点配置，使用默认设置');
+        // 保持默认配置
+      } else if (data.length > 0) {
+        checkpoints = data.map(cp => ({
+          code: cp.code,
+          name: cp.name,
+          color: cp.code === 'START' ? '#10b981' : cp.code === 'FINISH' ? '#ef4444' : '#3b82f6'
+        }));
+        logMessage(`✅ 加载了 ${checkpoints.length} 个检查点配置`);
+      }
+      
+      // 更新检查点按钮
+      updateCheckpointButtons();
+      
+      // 如果还没有选择检查点，默认选择第一个
+      if (!currentCheckpoint && checkpoints.length > 0) {
+        selectCheckpoint(checkpoints[0].code);
       }
     }
     
@@ -449,47 +269,6 @@
       }
       
       hitCheckpoint(currentCheckpoint, bib);
-    }
-    
-    // 打卡核心函数（补充完整）
-    async function hitCheckpoint(checkpointCode, bib) {
-      if (!client) {
-        alert('未連接數據庫，無法打卡');
-        return;
-      }
-      
-      try {
-        const checkpoint = checkpoints.find(cp => cp.code === checkpointCode);
-        const timestamp = new Date().toISOString();
-        
-        // 记录打卡
-        const { error } = await client
-          .from('checkins')
-          .insert([
-            { 
-              bib_number: bib, 
-              checkpoint_code: checkpointCode,
-              checkpoint_name: checkpoint?.name || checkpointCode,
-              timestamp: timestamp
-            }
-          ]);
-        
-        if (error) {
-          throw error;
-        }
-        
-        // 更新UI
-        logMessage(`✅ 打卡成功: ${bib} - ${checkpoint?.name || checkpointCode} (${new Date().toLocaleTimeString()})`);
-        document.getElementById('bibInput').value = '';
-        lastBibNumber = bib;
-        document.getElementById('lastBib').textContent = bib;
-        localStorage.setItem('nfc_last_bib', bib);
-        
-      } catch (e) {
-        console.error('打卡失败:', e);
-        logMessage(`❌ 打卡失敗: ${e.message}`);
-        alert('打卡失敗: ' + e.message);
-      }
     }
     
     function setMode(mode, event) {
@@ -591,6 +370,22 @@
                 }
                 return;
               }
+              
+              // 尝试解析URL记录
+              if (record.recordType === 'url') {
+                const textDecoder = new TextDecoder();
+                const url = textDecoder.decode(record.data);
+                logMessage(`🌐 NFC標籤URL: ${url}`);
+                
+                // 从URL中提取号码
+                const bib = extractBibFromUrl(url);
+                if (bib) {
+                  processNfcBibNumber(bib);
+                } else {
+                  logMessage(`❌ 無法從URL提取有效號碼: ${url}`);
+                }
+                return;
+              }
             }
           } catch (e) {
             logMessage(`❌ NFC讀取錯誤: ${e.message}`);
@@ -599,19 +394,20 @@
         
         // 开始扫描
         await reader.scan();
-        logMessage('✅ NFC掃描已啟動，請靠近NFC標籤');
+        logMessage('✅ 已啟動NFC掃描，請將標籤靠近設備');
         
-      } catch (e) {
-        logMessage(`❌ NFC初始化失敗: ${e.message}`);
-        startSimulatedNfcReader(); // 失败时切换到模拟模式
+      } catch (error) {
+        logMessage(`❌ NFC初始化失敗: ${error.message}`);
+        logMessage('💡 請確認已授予NFC權限，並重試');
+        startSimulatedNfcReader(); //  fallback到模拟模式
       }
     }
     
     // 模拟NFC读取器（用于测试）
     function startSimulatedNfcReader() {
-      logMessage('▶️ 啟動NFC模擬模式，每5秒生成一個模擬號碼');
+      logMessage('▶️ 啟動NFC模擬模式，每5秒產生一個模擬號碼');
       
-      // 模拟NFC读取
+      // 模拟NFC读取，每5秒生成一个随机号码
       nfcReader = setInterval(() => {
         // 生成100-999之间的随机号码
         const simulatedBib = Math.floor(100 + Math.random() * 900).toString();
@@ -623,30 +419,99 @@
     // 处理NFC读取到的号码
     function processNfcBibNumber(bib) {
       if (!currentCheckpoint) {
-        logMessage('⚠️ 請先選擇檢查點再進行NFC打卡');
+        logMessage('❌ 請先選擇檢查點');
         return;
       }
       
-      // 显示号码并自动打卡
+      // 显示号码
       document.getElementById('bibInput').value = bib;
+      
+      // 自动打卡
       hitCheckpoint(currentCheckpoint, bib);
     }
     
-    // 提取号码（简单处理）
+    // 从文本中提取号码
     function extractBibNumber(text) {
-      // 提取数字
+      // 尝试提取数字
       const match = text.match(/\d+/);
-      return match ? match[0] : text.trim();
+      return match ? match[0] : null;
     }
     
-    // 日志功能
+    // 从URL中提取号码
+    function extractBibFromUrl(url) {
+      // 尝试从URL路径或查询参数中提取数字
+      const match = url.match(/\d+/);
+      return match ? match[0] : null;
+    }
+    
+    // 打卡操作
+    async function hitCheckpoint(checkpoint, bib) {
+      if (!client) {
+        alert('請先連線資料庫');
+        return;
+      }
+      
+      if (!checkpoint || !bib) {
+        alert('檢查點或號碼布編號未填寫完整');
+        return;
+      }
+      
+      try {
+        logMessage(`📌 正在打卡: ${bib} @ ${checkpoint}`);
+        
+        // 获取当前时间（ISO格式）
+        const now = new Date().toISOString();
+        
+        // 保存打卡记录
+        const { data, error } = await client
+          .from('checkins')
+          .insert([
+            { 
+              bib_number: bib, 
+              checkpoint: checkpoint,
+              timestamp: now
+            }
+          ]);
+        
+        if (error) throw error;
+        
+        // 更新最后打卡号码
+        lastBibNumber = bib;
+        document.getElementById('lastBib').textContent = bib;
+        localStorage.setItem('nfc_last_bib', bib);
+        
+        // 清空输入框
+        document.getElementById('bibInput').value = '';
+        
+        logMessage(`✅ 打卡成功: ${bib} @ ${checkpoint} - ${formatTime(now)}`);
+        
+      } catch (e) {
+        console.error('打卡错误:', e);
+        logMessage(`❌ 打卡失敗: ${e.message}`);
+        alert('打卡失敗: ' + e.message);
+      }
+    }
+    
+    // 格式化时间显示
+    function formatTime(isoString) {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString('zh-HK', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      });
+    }
+    
+    // 日志记录函数
     function logMessage(message) {
       const logElement = document.getElementById('log');
-      const timestamp = new Date().toLocaleTimeString();
+      const timestamp = new Date().toLocaleTimeString('zh-HK');
       const logEntry = document.createElement('div');
-      logEntry.textContent = `[${timestamp}] ${message}`;
+      logEntry.innerHTML = `[${timestamp}] ${message}`;
       logElement.appendChild(logEntry);
       logElement.scrollTop = logElement.scrollHeight; // 滚动到底部
+      
+      // 控制台也输出一份
       console.log(`[LOG] ${message}`);
     }
   </script>
