@@ -10,8 +10,8 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-      background: #ffffff; 
-      color: #000000; 
+      background: #ffffff; /* 改为白色背景 */
+      color: #000000; /* 改为黑色文字 */
       min-height: 100vh; display: flex; flex-direction: column; 
       align-items: center; justify-content: center; padding: 20px; text-align: center;
     }
@@ -55,6 +55,7 @@
     <div class="checkpoint-selector">
       <h3>選擇檢查點</h3>
       <div id="checkpointGrid" class="checkpoint-grid">
+        <!-- 检查点按钮将动态生成 -->
         <button class="checkpoint-btn start" onclick="selectCheckpoint('START')">🚀 起點</button>
         <button class="checkpoint-btn finish" onclick="selectCheckpoint('FINISH')">🏁 終點</button>
       </div>
@@ -368,110 +369,6 @@
       hitCheckpoint(currentCheckpoint, bib);
     }
     
-    // 核心打卡函数 - 修复数据插入问题
-    async function hitCheckpoint(checkpointCode, bibNumber) {
-      if (!client) {
-        logMessage('❌ 未連線到資料庫，無法打卡');
-        alert('未連線到資料庫，無法打卡');
-        return;
-      }
-      
-      if (!checkpointCode || !bibNumber) {
-        logMessage('❌ 檢查點或號碼布編號未填寫完整');
-        return;
-      }
-      
-      try {
-        // 获取当前时间（UTC+8）
-        const now = new Date();
-        // 转换为ISO格式，包含时区信息
-        const timestamp = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString();
-        
-        // 查找检查点名称
-        const checkpoint = checkpoints.find(cp => cp.code === checkpointCode);
-        const checkpointName = checkpoint ? checkpoint.name : checkpointCode;
-        
-        logMessage(`📌 正在為 ${bibNumber} 在 ${checkpointName} 打卡...`);
-        
-        // 先检查参赛者是否存在
-        const { data: runnerData, error: runnerError } = await client
-          .from('participants')
-          .select('*')
-          .eq('bib_number', bibNumber)
-          .single();
-          
-        if (runnerError) {
-          logMessage(`⚠️ 未找到號碼 ${bibNumber} 的參賽者，仍會記錄打卡`);
-          console.warn('参赛者不存在:', runnerError);
-        }
-        
-        // 插入打卡记录 - 修复的核心部分
-        const { data, error } = await client
-          .from('checkins')
-          .insert([{
-            bib_number: bibNumber,
-            checkpoint_code: checkpointCode,
-            checkpoint_name: checkpointName,
-            timestamp: timestamp,
-            event_id: 'default'
-          }])
-          .select();
-          
-        if (error) {
-          console.error('打卡记录插入失败:', error);
-          logMessage(`❌ 打卡失敗: ${error.message}`);
-          logMessage(`   錯誤代碼: ${error.code || '未知'}`);
-          
-          // 提供更具体的错误提示
-          if (error.code === '23503') {
-            logMessage('💡 可能是檢查點代碼不存在，請檢查檢查點配置');
-          } else if (error.message.includes('unique constraint')) {
-            logMessage('💡 此參賽者已在該檢查點打卡過');
-          }
-          
-          alert(`打卡失敗: ${error.message}`);
-          return;
-        }
-        
-        // 打卡成功处理
-        logMessage(`✅ 打卡成功！號碼: ${bibNumber}，檢查點: ${checkpointName}`);
-        logMessage(`   時間: ${formatDateTime(timestamp)}`);
-        
-        // 更新最后打卡号码
-        lastBibNumber = bibNumber;
-        document.getElementById('lastBib').textContent = bibNumber;
-        localStorage.setItem('nfc_last_bib', bibNumber);
-        
-        // 清空输入框
-        document.getElementById('bibInput').value = '';
-        
-        // 给用户视觉反馈
-        const punchBtn = document.getElementById('punchBtn');
-        punchBtn.style.background = '#10b981';
-        setTimeout(() => {
-          punchBtn.style.background = '';
-        }, 500);
-        
-      } catch (e) {
-        console.error('打卡过程中发生异常:', e);
-        logMessage(`❌ 打卡過程發生錯誤: ${e.message || e.toString()}`);
-        alert(`打卡過程發生錯誤: ${e.message || e.toString()}`);
-      }
-    }
-    
-    // 格式化日期时间显示
-    function formatDateTime(isoString) {
-      const date = new Date(isoString);
-      return date.toLocaleString('zh-HK', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    }
-    
     function setMode(mode, event) {
       currentMode = mode;
       localStorage.setItem('nfc_checkpoint_mode', mode);
@@ -578,8 +475,8 @@
                 const url = textDecoder.decode(record.data);
                 logMessage(`🌐 NFC標籤URL: ${url}`);
                 
-                // 从URL中提取号码
-                const bib = extractBibNumber(url);
+                // 从URL中提取号码（假设URL包含号码信息）
+                const bib = extractBibFromUrl(url);
                 if (bib) {
                   processNfcBibNumber(bib);
                 } else {
@@ -588,73 +485,153 @@
                 return;
               }
             }
-            logMessage(`❌ 無法解析NFC標籤內容`);
+            
+            logMessage('❌ 未識別的NFC標籤格式');
           } catch (e) {
             logMessage(`❌ NFC讀取錯誤: ${e.message}`);
+            console.error('NFC reading error:', e);
           }
         });
         
         // 监听错误事件
-        reader.addEventListener('error', (event) => {
-          logMessage(`❌ NFC讀取器錯誤: ${event.error.message}`);
+        reader.addEventListener('error', (error) => {
+          logMessage(`❌ NFC讀取器錯誤: ${error.message}`);
+          console.error('NFC reader error:', error);
         });
         
         // 请求扫描NFC标签
-        await reader.scan();
-        logMessage('📱 已準備就緒，請將NFC標籤靠近');
+        await reader.scan({ signal: AbortSignal.timeout(300000) }); // 5分钟超时
+        logMessage('📡 正在等待NFC標籤... (5分鐘後超時)');
         
       } catch (e) {
-        logMessage(`❌ 啟動NFC讀取器失敗: ${e.message}`);
-        console.error('NFC初始化错误:', e);
-        startSimulatedNfcReader(); // 失败时切换到模拟模式
+        logMessage(`❌ NFC初始化失敗: ${e.message}`);
+        console.error('NFC initialization error:', e);
+        
+        // 初始化失败时切换到模拟模式
+        if (!('NDEFReader' in window)) {
+          startSimulatedNfcReader();
+        }
       }
     }
     
     // 模拟NFC读取器（用于测试）
     function startSimulatedNfcReader() {
-      logMessage('📱 模擬NFC模式已啟用，每5秒產生一個模擬號碼');
+      logMessage('📱 模擬NFC模式啟動，每5秒隨機生成一個號碼');
       
-      // 模拟NFC读取，每5秒生成一个随机号码
+      // 清除之前的定时器
+      if (typeof nfcReader === 'number') {
+        clearInterval(nfcReader);
+      }
+      
+      // 模拟NFC读取
       nfcReader = setInterval(() => {
-        const randomBib = Math.floor(100 + Math.random() * 900).toString(); // 100-999的随机数
-        logMessage(`📱 模擬NFC讀取: 號碼 ${randomBib}`);
+        // 生成100-999之间的随机号码
+        const randomBib = Math.floor(100 + Math.random() * 900).toString();
+        logMessage(`📱 模擬NFC讀取: ${randomBib}`);
         processNfcBibNumber(randomBib);
       }, 5000);
     }
     
     // 处理NFC读取到的号码
-    function processNfcBibNumber(bibNumber) {
+    function processNfcBibNumber(bib) {
       if (!currentCheckpoint) {
-        logMessage('❌ 請先選擇檢查點再進行NFC打卡');
+        logMessage('❌ 請先選擇檢查點');
         return;
       }
       
-      // 显示号码
-      document.getElementById('bibInput').value = bibNumber;
+      // 填充到输入框
+      document.getElementById('bibInput').value = bib;
       
       // 自动打卡
-      hitCheckpoint(currentCheckpoint, bibNumber);
+      hitCheckpoint(currentCheckpoint, bib);
     }
     
     // 从文本中提取号码
     function extractBibNumber(text) {
-      // 尝试提取数字序列
+      // 假设号码是纯数字
       const match = text.match(/\d+/);
-      if (match) {
-        return match[0];
-      }
-      return null;
+      return match ? match[0] : null;
     }
     
-    // 日志记录函数
+    // 从URL中提取号码
+    function extractBibFromUrl(url) {
+      // 尝试从URL参数中提取bib或number参数
+      const params = new URLSearchParams(new URL(url).search);
+      return params.get('bib') || params.get('number') || extractBibNumber(url);
+    }
+    
+    // 执行打卡操作
+    async function hitCheckpoint(checkpointCode, bibNumber) {
+      if (!client) {
+        logMessage("❌ 未連線到資料庫，無法打卡");
+        return;
+      }
+      
+      try {
+        // 检查参与者是否存在
+        const { data: participant, error: participantError } = await client
+          .from('participants')
+          .select('*')
+          .eq('bib_number', bibNumber)
+          .single();
+          
+        if (participantError) {
+          if (participantError.code === 'PGRST116') {
+            // 参与者不存在
+            logMessage(`❌ 打卡失敗: 號碼 ${bibNumber} 不存在`);
+            // 震动反馈（如果支持）
+            if ('vibrate' in navigator) {
+              navigator.vibrate([200, 100, 200]);
+            }
+            return;
+          } else {
+            throw participantError;
+          }
+        }
+        
+        // 记录打卡
+        const { error: checkinError } = await client
+          .from('checkins')
+          .insert([{
+            bib_number: bibNumber,
+            checkpoint_code: checkpointCode,
+            checkin_time: new Date()
+          }]);
+          
+        if (checkinError) throw checkinError;
+        
+        // 打卡成功
+        logMessage(`✅ 打卡成功！號碼: ${bibNumber}，檢查點: ${checkpointCode}`);
+        // 震动反馈
+        if ('vibrate' in navigator) {
+          navigator.vibrate(100);
+        }
+        
+        // 更新UI
+        document.getElementById('bibInput').value = '';
+        lastBibNumber = bibNumber;
+        document.getElementById('lastBib').textContent = bibNumber;
+        localStorage.setItem('nfc_last_bib', bibNumber);
+        
+      } catch (e) {
+        console.error('打卡错误:', e);
+        logMessage(`❌ 打卡失敗: ${e.message}`);
+        // 震动反馈
+        if ('vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200]);
+        }
+      }
+    }
+    
+    // 记录日志
     function logMessage(message) {
       const logElement = document.getElementById('log');
-      const timestamp = new Date().toLocaleTimeString('zh-HK');
+      const timestamp = new Date().toLocaleTimeString();
       const logEntry = document.createElement('div');
       logEntry.textContent = `[${timestamp}] ${message}`;
       logElement.appendChild(logEntry);
-      logElement.scrollTop = logElement.scrollHeight; // 自动滚动到底部
-      console.log(`[LOG] ${message}`);
+      logElement.scrollTop = logElement.scrollHeight; // 滚动到底部
+      console.log(`[${timestamp}] ${message}`);
     }
   </script>
 </body>
