@@ -1278,7 +1278,7 @@
       }
     }
 
-    // 完整的匯出CSV函數 - 包含排名、號碼、姓名、起跑時間、完賽時間、用時
+    // 修復後的CSV匯出函數 - 解決field.includes is not a function錯誤
     async function exportCSV() {
       if (!adminClient) {
         alert('請先連線數據庫');
@@ -1374,20 +1374,21 @@
           }
         });
         
-        // 建立CSV內容
+        // 建立CSV內容 - 修復includes錯誤：先將所有欄位轉為字串
         let csvContent = '排名,號碼,姓名,起跑時間,完賽時間,用時\n';
         
         exportData.forEach((item, index) => {
           const row = [
-            index + 1, // 排名
-            item.bib_number,
-            item.name,
-            item.start_time || '',
-            item.finish_time || '',
-            item.duration || ''
+            (index + 1).toString(), // 排名 - 轉為字串
+            item.bib_number.toString(), // 號碼 - 轉為字串
+            item.name.toString(), // 姓名 - 轉為字串
+            item.start_time.toString(), // 起跑時間 - 轉為字串
+            item.finish_time.toString(), // 完賽時間 - 轉為字串
+            item.duration.toString() // 用時 - 轉為字串
           ].map(field => {
             // 處理包含逗號的欄位，用引號包起來
-            return field.includes(',') ? `"${field}"` : field;
+            const strField = String(field); // 確保是字串
+            return strField.includes(',') ? `"${strField}"` : strField;
           }).join(',');
           
           csvContent += row + '\n';
