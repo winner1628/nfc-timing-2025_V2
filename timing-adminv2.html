@@ -34,7 +34,19 @@
     .stat-card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
     .stat-number { font-size: 36px; font-weight: bold; color: #000000; }
     .stat-label { color: #000000; margin-top: 8px; font-weight: 500; font-size: 18px; }
-    .chart-container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 24px; width: 50%; margin-left: auto; margin-right: auto; }
+    /* 修复图表容器大小 */
+    .chart-container { 
+      background: white; 
+      padding: 24px; 
+      border-radius: 16px; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+      margin-bottom: 24px; 
+      width: 100%; 
+      max-width: 600px; 
+      margin-left: auto; 
+      margin-right: auto;
+      height: 300px; /* 固定高度 */
+    }
     
     /* 導航樣式 */
     .navigation { margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
@@ -55,6 +67,12 @@
     /* 模態框文字顏色 */
     #manageUsersModal { color: #000000 !important; }
     #manageUsersModal h2, #manageUsersModal h3, #manageUsersModal p { color: #000000 !important; }
+    
+    /* 图表canvas样式 */
+    #progressChartCanvas {
+      width: 100% !important;
+      height: 200px !important; /* 固定canvas高度 */
+    }
   </style>
 </head>
 <body>
@@ -102,7 +120,7 @@
       
       <div class="chart-container" id="progressChart" style="display: none;">
         <h3>📈 比賽進度</h3>
-        <canvas id="progressChartCanvas" width="400" height="200"></canvas>
+        <canvas id="progressChartCanvas"></canvas>
       </div>
       
       <div class="controls">
@@ -425,10 +443,10 @@
         status.textContent = '連線中...';
         status.style.background = '#f59e0b';
 
+        // 測試連接
         const { data, error } = await adminClient
           .from('participants')
-          .select('*')
-          .limit(1);
+          .select('*', { count: 'exact', head: true });
 
         if (error) throw new Error('讀取 participants 出錯：' + error.message);
 
@@ -515,88 +533,88 @@
 
     async function loadDashboardStats() {
       try {
-        // 1. 總參賽人數
+        // 1. 總參賽人數 - 直接計數
         const totalRunnersResult = await adminClient
           .from('participants')
           .select('*', { count: 'exact', head: true });
         const totalRunners = totalRunnersResult.count || 0;
         
-        // 2. 已出發人數 - 修復查詢邏輯 (使用 Supabase 正確的 distinct 語法)
+        // 2. 已出發人數 - 獲取所有起點打卡記錄並去重
         const { data: startCheckins } = await adminClient
           .from('checkins')
-          .select('bib_number', { count: 'exact', head: true })
-          .eq('checkpoint', 'START')
-          .order('bib_number')
-          .limit(9999); // 獲取所有記錄
+          .select('bib_number')
+          .eq('checkpoint', 'START');
         
-        // 手動去重計數
         const startedBibs = new Set();
-        if (startCheckins) {
-          startCheckins.forEach(c => startedBibs.add(c.bib_number));
+        if (startCheckins && startCheckins.length > 0) {
+          startCheckins.forEach(c => {
+            if (c.bib_number) startedBibs.add(c.bib_number);
+          });
         }
         const startedRunners = startedBibs.size;
         
-        // 3. 已完賽人數 - 修復查詢邏輯
+        // 3. 已完賽人數 - 獲取所有終點打卡記錄並去重
         const { data: finishCheckins } = await adminClient
           .from('checkins')
-          .select('bib_number', { count: 'exact', head: true })
-          .eq('checkpoint', 'FINISH')
-          .order('bib_number')
-          .limit(9999);
+          .select('bib_number')
+          .eq('checkpoint', 'FINISH');
         
-        // 手動去重計數
         const finishedBibs = new Set();
-        if (finishCheckins) {
-          finishCheckins.forEach(c => finishedBibs.add(c.bib_number));
+        if (finishCheckins && finishCheckins.length > 0) {
+          finishCheckins.forEach(c => {
+            if (c.bib_number) finishedBibs.add(c.bib_number);
+          });
         }
         const finishedRunners = finishedBibs.size;
         
-        // 4. 平均完賽時間 - 重寫邏輯
+        // 4. 平均完賽時間 - 精確計算
         let avgTime = '00:00';
         if (finishedRunners > 0) {
-          // 獲取所有完賽選手的終點記錄
-          const { data: finishers } = await adminClient
-            .from('checkins')
-            .select('bib_number, time as finish_time')
-            .eq('checkpoint', 'FINISH');
+          let totalSeconds = 0;
+          let validCount = 0;
           
-          if (finishers && finishers.length > 0) {
-            let totalSeconds = 0;
-            let validFinishers = 0;
+          // 遍歷每個完賽選手
+          for (const bib of finishedBibs) {
+            // 獲取該選手的起點記錄
+            const { data: startData } = await adminClient
+              .from('checkins')
+              .select('time')
+              .eq('bib_number', bib)
+              .eq('checkpoint', 'START')
+              .order('time', { ascending: true })
+              .limit(1);
             
-            // 遍歷每個完賽選手
-            for (const finisher of finishers) {
-              // 獲取該選手的起點記錄
-              const { data: startRecord } = await adminClient
-                .from('checkins')
-                .select('time')
-                .eq('bib_number', finisher.bib_number)
-                .eq('checkpoint', 'START')
-                .single();
+            // 獲取該選手的終點記錄
+            const { data: finishData } = await adminClient
+              .from('checkins')
+              .select('time')
+              .eq('bib_number', bib)
+              .eq('checkpoint', 'FINISH')
+              .order('time', { ascending: false })
+              .limit(1);
+            
+            if (startData && startData.length > 0 && finishData && finishData.length > 0) {
+              const startTime = new Date(startData[0].time).getTime();
+              const finishTime = new Date(finishData[0].time).getTime();
+              const duration = (finishTime - startTime) / 1000;
               
-              if (startRecord && finisher.finish_time) {
-                const start = new Date(startRecord.time).getTime();
-                const finish = new Date(finisher.finish_time).getTime();
-                const duration = (finish - start) / 1000;
-                
-                if (duration > 0) {
-                  totalSeconds += duration;
-                  validFinishers++;
-                }
+              if (duration > 0 && !isNaN(duration)) {
+                totalSeconds += duration;
+                validCount++;
               }
             }
-            
-            if (validFinishers > 0) {
-              const avgSeconds = totalSeconds / validFinishers;
-              avgTime = formatTime(avgSeconds);
-            }
+          }
+          
+          if (validCount > 0) {
+            const avgSeconds = totalSeconds / validCount;
+            avgTime = formatTime(avgSeconds);
           }
         }
         
-        // 更新UI - 確保數值顯示
-        document.getElementById('totalRunners').textContent = totalRunners;
-        document.getElementById('startedRunners').textContent = startedRunners;
-        document.getElementById('finishedRunners').textContent = finishedRunners;
+        // 強制更新UI - 確保數據顯示
+        document.getElementById('totalRunners').textContent = totalRunners.toString();
+        document.getElementById('startedRunners').textContent = startedRunners.toString();
+        document.getElementById('finishedRunners').textContent = finishedRunners.toString();
         document.getElementById('avgTime').textContent = avgTime;
         
         // 更新圖表
@@ -606,25 +624,30 @@
         console.error('加載統計數據失敗:', error);
         logMessage(`❌ 加載統計數據失敗: ${error.message}`);
         
-        // 即使出錯也顯示基礎數值
+        // 保底顯示0值
         document.getElementById('totalRunners').textContent = '0';
         document.getElementById('startedRunners').textContent = '0';
         document.getElementById('finishedRunners').textContent = '0';
         document.getElementById('avgTime').textContent = '00:00';
+        
+        // 顯示空圖表
+        updateProgressChart(0, 0, 0);
       }
     }
 
     function updateProgressChart(total, started, finished) {
       const ctx = document.getElementById('progressChartCanvas').getContext('2d');
       
+      // 銷毀舊圖表
       if (progressChart) {
         progressChart.destroy();
       }
       
-      // 確保數值不為負
+      // 確保數值合理
       const notStarted = Math.max(0, total - started);
       const inProgress = Math.max(0, started - finished);
       
+      // 創建新圖表
       progressChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -638,7 +661,7 @@
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
           plugins: {
             legend: { 
               position: 'bottom',
@@ -662,7 +685,11 @@
               }
             }
           },
-          cutout: '60%'
+          cutout: '60%',
+          animation: {
+            duration: 1000,
+            easing: 'easeOutQuart'
+          }
         }
       });
     }
@@ -683,28 +710,45 @@
         const { data: startCheckins } = await adminClient
           .from('checkins')
           .select('bib_number, time')
-          .eq('checkpoint', 'START')
-          .order('time');
+          .eq('checkpoint', 'START');
         
         // 獲取所有終點記錄
         const { data: finishCheckins } = await adminClient
           .from('checkins')
           .select('bib_number, time')
-          .eq('checkpoint', 'FINISH')
-          .order('time');
+          .eq('checkpoint', 'FINISH');
+        
+        // 創建快速查找映射
+        const startMap = new Map();
+        if (startCheckins) {
+          startCheckins.forEach(c => {
+            if (!startMap.has(c.bib_number) || new Date(c.time) < new Date(startMap.get(c.bib_number))) {
+              startMap.set(c.bib_number, c.time);
+            }
+          });
+        }
+        
+        const finishMap = new Map();
+        if (finishCheckins) {
+          finishCheckins.forEach(c => {
+            if (!finishMap.has(c.bib_number) || new Date(c.time) < new Date(finishMap.get(c.bib_number))) {
+              finishMap.set(c.bib_number, c.time);
+            }
+          });
+        }
         
         // 合併數據
         const results = participants.map(participant => {
-          const start = startCheckins ? startCheckins.find(c => c.bib_number === participant.bib_number) : null;
-          const finish = finishCheckins ? finishCheckins.find(c => c.bib_number === participant.bib_number) : null;
+          const start_time = startMap.get(participant.bib_number);
+          const finish_time = finishMap.get(participant.bib_number);
           
           return {
             bib_number: participant.bib_number,
             name: participant.name,
-            start_time: start?.time,
-            finish_time: finish?.time,
-            duration: start && finish 
-              ? (new Date(finish.time).getTime() - new Date(start.time).getTime()) / 1000 
+            start_time: start_time,
+            finish_time: finish_time,
+            duration: start_time && finish_time 
+              ? (new Date(finish_time).getTime() - new Date(start_time).getTime()) / 1000 
               : null
           };
         }).filter(r => r.start_time); // 只顯示已出發的選手
@@ -751,13 +795,20 @@
             row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
           }
           
+          // 格式化時間顯示
+          const formatDateTime = (dateStr) => {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          };
+          
           row.innerHTML = `
-            <td style="color:#000000;">${index + 1}</td>
+            <td style="color:#000000; font-weight: bold;">${index + 1}</td>
             <td style="color:#000000;">${result.bib_number}</td>
             <td style="color:#000000;">${result.name}</td>
-            <td style="color:#000000;">${result.start_time ? new Date(result.start_time).toLocaleTimeString() : '-'}</td>
-            <td style="color:#000000;">${result.finish_time ? new Date(result.finish_time).toLocaleTimeString() : '-'}</td>
-            <td style="color:#000000;">${result.duration ? formatTime(result.duration) : '-'}</td>
+            <td style="color:#000000;">${formatDateTime(result.start_time)}</td>
+            <td style="color:#000000;">${formatDateTime(result.finish_time)}</td>
+            <td style="color:#000000; font-weight: bold;">${result.duration ? formatTime(result.duration) : '-'}</td>
           `;
           tableBody.appendChild(row);
         });
@@ -785,12 +836,12 @@
         
         const { data: checkins } = await adminClient
           .from('checkins')
-          .select('bib_number, checkpoint, time')
-          .order('time');
+          .select('bib_number, checkpoint, time');
         
         // 處理數據
         const runnerData = {};
         
+        // 初始化所有參賽者
         participants.forEach(p => {
           runnerData[p.bib_number] = {
             bib_number: p.bib_number,
@@ -800,12 +851,19 @@
           };
         });
         
-        checkins.forEach(c => {
-          if (!runnerData[c.bib_number]) return;
-          if (filter !== 'all' && c.checkpoint !== filter) return;
-          
-          runnerData[c.bib_number].checkpoints[c.checkpoint] = c.time;
-        });
+        // 填充檢查點數據
+        if (checkins) {
+          checkins.forEach(c => {
+            if (!runnerData[c.bib_number]) return;
+            if (filter !== 'all' && c.checkpoint !== filter) return;
+            
+            // 只保留最早的打卡時間
+            if (!runnerData[c.bib_number].checkpoints[c.checkpoint] || 
+                new Date(c.time) < new Date(runnerData[c.bib_number].checkpoints[c.checkpoint])) {
+              runnerData[c.bib_number].checkpoints[c.checkpoint] = c.time;
+            }
+          });
+        }
         
         // 計算總時間
         Object.values(runnerData).forEach(runner => {
@@ -818,7 +876,7 @@
         });
         
         // 排序
-        const rankedRunners = Object.values(runnerData).filter(r => r.total_time !== null);
+        const rankedRunners = Object.values(runnerData).filter(r => r.total_time !== null && r.total_time > 0);
         
         if (rankingMode === 'gun') {
           rankedRunners.sort((a, b) => new Date(a.checkpoints.FINISH) - new Date(b.checkpoints.FINISH));
@@ -844,15 +902,16 @@
           // 格式化檢查點時間
           const checkpointTimes = checkpoints.map(cp => {
             const time = runner.checkpoints[cp.code];
-            return `${cp.name}: ${time ? new Date(time).toLocaleTimeString() : '-'}`;
+            const formattedTime = time ? new Date(time).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+            return `${cp.name}: ${formattedTime}`;
           }).join('<br>');
           
           row.innerHTML = `
-            <td style="color:#000000;">${index + 1}</td>
+            <td style="color:#000000; font-weight: bold;">${index + 1}</td>
             <td style="color:#000000;">${runner.bib_number}</td>
             <td style="color:#000000;">${runner.name}</td>
-            <td style="color:#000000;">${checkpointTimes}</td>
-            <td style="color:#000000;">${runner.total_time ? formatTime(runner.total_time) : '-'}</td>
+            <td style="color:#000000; font-size: 14px;">${checkpointTimes}</td>
+            <td style="color:#000000; font-weight: bold;">${runner.total_time ? formatTime(runner.total_time) : '-'}</td>
           `;
           tableBody.appendChild(row);
         });
@@ -876,7 +935,8 @@
               name
             )
           `)
-          .order('time', { ascending: false });
+          .order('time', { ascending: false })
+          .limit(100); // 限制只加載最近100條記錄
         
         allCheckins = checkins || [];
         filterCheckins();
@@ -894,7 +954,7 @@
       
       const filtered = allCheckins.filter(checkin => {
         const matchesCheckpoint = checkpointFilter === 'all' || checkin.checkpoint === checkpointFilter;
-        const matchesBib = !bibFilter || checkin.bib_number.toLowerCase().includes(bibFilter);
+        const matchesBib = !bibFilter || (checkin.bib_number && checkin.bib_number.toLowerCase().includes(bibFilter));
         return matchesCheckpoint && matchesBib;
       });
       
@@ -908,11 +968,22 @@
       
       filtered.forEach(checkin => {
         const row = document.createElement('tr');
+        
+        // 格式化時間
+        const formattedTime = new Date(checkin.time).toLocaleString('zh-HK', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        
         row.innerHTML = `
-          <td style="color:#000000;">${new Date(checkin.time).toLocaleString()}</td>
-          <td style="color:#000000;">${checkin.bib_number}</td>
+          <td style="color:#000000;">${formattedTime}</td>
+          <td style="color:#000000; font-weight: bold;">${checkin.bib_number || '未知'}</td>
           <td style="color:#000000;">${checkin.participants?.name || '未知'}</td>
-          <td style="color:#000000;">${checkin.checkpoint}</td>
+          <td style="color:#000000;">${checkin.checkpoint || '未知'}</td>
         `;
         tableBody.appendChild(row);
       });
@@ -938,11 +1009,11 @@
         data.forEach(participant => {
           const row = document.createElement('tr');
           row.innerHTML = `
-            <td style="color:#000000;">${participant.bib_number}</td>
+            <td style="color:#000000; font-weight: bold;">${participant.bib_number}</td>
             <td style="color:#000000;">${participant.name}</td>
             <td style="text-align:center; color:#000000;">
-              <button onclick="editParticipant('${participant.bib_number}', '${participant.name}')" style="padding: 4px 8px; background: #3b82f6; color:white;">編輯</button>
-              <button onclick="deleteParticipant('${participant.bib_number}')" style="padding: 4px 8px; background: #ef4444; color:white;">刪除</button>
+              <button onclick="editParticipant('${participant.bib_number}', '${participant.name}')" style="padding: 4px 8px; background: #3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;">編輯</button>
+              <button onclick="deleteParticipant('${participant.bib_number}')" style="padding: 4px 8px; background: #ef4444; color:white; border:none; border-radius:4px; cursor:pointer; margin-left:4px;">刪除</button>
             </td>
           `;
           tableBody.appendChild(row);
@@ -982,11 +1053,11 @@
 
     function editParticipant(bib, name) {
       const newName = prompt('修改姓名', name);
-      if (newName === null) return;
+      if (newName === null || newName.trim() === '') return;
       
       adminClient
         .from('participants')
-        .update({ name: newName })
+        .update({ name: newName.trim() })
         .eq('bib_number', bib)
         .then(({ error }) => {
           if (error) alert('修改失敗: ' + error.message);
@@ -1094,15 +1165,16 @@
         const checkins = checkinsResult.data || [];
         
         // 導出參賽者
-        let csv = "號碼,姓名\n";
+        let csv = "\uFEFF號碼,姓名\n"; // BOM 解決中文亂碼
         participants.forEach(p => {
-          csv += `${p.bib_number},${p.name}\n`;
+          csv += `${p.bib_number},${p.name || ''}\n`;
         });
         
         // 導出打卡記錄
         csv += "\n時間,號碼,檢查點\n";
         checkins.forEach(c => {
-          csv += `${new Date(c.time).toLocaleString()},${c.bib_number},${c.checkpoint}\n`;
+          const timeStr = new Date(c.time).toLocaleString('zh-HK');
+          csv += `${timeStr},${c.bib_number || ''},${c.checkpoint || ''}\n`;
         });
         
         // 下載文件
@@ -1174,19 +1246,27 @@
 
     function logMessage(message) {
       const logElement = document.getElementById('log');
-      const timestamp = new Date().toLocaleTimeString('zh-HK');
+      const timestamp = new Date().toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const logEntry = document.createElement('div');
       logEntry.textContent = `[${timestamp}] ${message}`;
       logEntry.style.color = '#000000';
+      logEntry.style.margin = '4px 0';
       logElement.appendChild(logEntry);
       logElement.scrollTop = logElement.scrollHeight;
     }
 
     function formatTime(seconds) {
+      // 確保輸入是數字
+      if (isNaN(seconds) || seconds < 0) return '00:00:00';
+      
       const h = Math.floor(seconds / 3600);
       const m = Math.floor((seconds % 3600) / 60);
       const s = Math.floor(seconds % 60);
-      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      
+      // 格式化為兩位數
+      const formatDigit = (num) => num.toString().padStart(2, '0');
+      
+      return `${formatDigit(h)}:${formatDigit(m)}:${formatDigit(s)}`;
     }
     
     // 頁面關閉時清除自動刷新
