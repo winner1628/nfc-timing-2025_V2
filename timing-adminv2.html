@@ -710,20 +710,21 @@
               labels: {
                 color: '#1e293b',
                 font: {
-                  size: 16,
+                  size: 12,  // 🔴 減小圖例文字大小 (從16改為12)
                   weight: '600',
                   family: 'sans-serif'
                 },
-                padding: 20,
+                padding: 15,  // 減小內邊距
                 usePointStyle: true,
-                pointStyle: 'circle'
+                pointStyle: 'circle',
+                boxWidth: 10  // 減小圖例標記大小
               }
             },
             tooltip: {
               backgroundColor: 'rgba(30, 41, 59, 0.9)',
-              titleFont: { size: 16, weight: 'bold' },
-              bodyFont: { size: 14 },
-              padding: 12,
+              titleFont: { size: 14, weight: 'bold' },  // 減小tooltip標題字體
+              bodyFont: { size: 12 },  // 減小tooltip內容字體
+              padding: 10,  // 減小內邊距
               cornerRadius: 8,
               boxPadding: 4,
               callbacks: {
