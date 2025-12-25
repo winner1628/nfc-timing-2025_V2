@@ -710,21 +710,21 @@
               labels: {
                 color: '#1e293b',
                 font: {
-                  size: 12,  // 🔴 減小圖例文字大小 (從16改為12)
+                  size: 12,
                   weight: '600',
                   family: 'sans-serif'
                 },
-                padding: 15,  // 減小內邊距
+                padding: 15,
                 usePointStyle: true,
                 pointStyle: 'circle',
-                boxWidth: 10  // 減小圖例標記大小
+                boxWidth: 10
               }
             },
             tooltip: {
               backgroundColor: 'rgba(30, 41, 59, 0.9)',
-              titleFont: { size: 14, weight: 'bold' },  // 減小tooltip標題字體
-              bodyFont: { size: 12 },  // 減小tooltip內容字體
-              padding: 10,  // 減小內邊距
+              titleFont: { size: 14, weight: 'bold' },
+              bodyFont: { size: 12 },
+              padding: 10,
               cornerRadius: 8,
               boxPadding: 4,
               callbacks: {
@@ -984,65 +984,142 @@
       try {
         const { data: checkins } = await adminClient
           .from('checkins')
-          .select(`
-            time,
-            checkpoint,
-            bib_number,
-            participants (
-              name
-            )
-          `)
-          .order('time', { ascending: false })
-          .limit(100); // 限制只加載最近100條記錄
+          .select('*')
+          .order('time', { ascending: false });
         
         allCheckins = checkins || [];
-        filterCheckins();
+        
+        // 獲取參賽者姓名映射
+        const { data: participants } = await adminClient
+          .from('participants')
+          .select('bib_number, name');
+        
+        const nameMap = new Map();
+        if (participants) {
+          participants.forEach(p => nameMap.set(p.bib_number, p.name));
+        }
+        
+        // 過濾並更新表格
+        filterCheckins(nameMap);
+        
+        // 更新所有頁面的日誌
+        const recentCheckins = [...allCheckins].reverse().slice(0, 10);
+        let logHtml = '';
+        recentCheckins.forEach(c => {
+          const time = new Date(c.time).toLocaleString('zh-HK');
+          const name = nameMap.get(c.bib_number) || '未知';
+          logHtml += `[${time}] ${c.bib_number} (${name}) @ ${c.checkpoint}\n`;
+        });
+        
+        document.getElementById('overview-log').textContent = logHtml;
+        document.getElementById('ranking-log').textContent = logHtml;
+        document.getElementById('checkins-log').textContent = logHtml;
+        
       } catch (error) {
-        console.error('加載打卡數據失敗:', error);
-        logMessage(`❌ 加載打卡數據失敗: ${error.message}`);
+        console.error('加載打卡記錄失敗:', error);
+        logMessage(`❌ 加載打卡記錄失敗: ${error.message}`);
         const tableBody = document.getElementById('checkinsTable').querySelector('tbody');
         tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#000000;">加載數據失敗: ${error.message}</td></tr>`;
       }
     }
 
-    function filterCheckins() {
-      const checkpointFilter = document.getElementById('checkpointFilter').value;
-      const bibFilter = document.getElementById('bibFilter').value.toLowerCase();
-      
-      const filtered = allCheckins.filter(checkin => {
-        const matchesCheckpoint = checkpointFilter === 'all' || checkin.checkpoint === checkpointFilter;
-        const matchesBib = !bibFilter || (checkin.bib_number && checkin.bib_number.toLowerCase().includes(bibFilter));
-        return matchesCheckpoint && matchesBib;
-      });
-      
-      const tableBody = document.getElementById('checkinsTable').querySelector('tbody');
-      tableBody.innerHTML = '';
-      
-      if (filtered.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#000000;">暫無打卡記錄</td></tr>';
-        return;
-      }
-      
-      filtered.forEach(checkin => {
-        const row = document.createElement('tr');
+    function filterCheckins(nameMap = null) {
+      try {
+        const checkpointFilter = document.getElementById('checkpointFilter').value;
+        const bibFilter = document.getElementById('bibFilter').value.toLowerCase();
         
-        // 格式化時間
-        const formattedTime = new Date(checkin.time).toLocaleString('zh-HK', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
+        // 如果沒有傳入nameMap，重新獲取
+        if (!nameMap) {
+          const participants = Array.from(document.querySelectorAll('#participantsTableBody tr')).map(row => {
+            const cells = row.querySelectorAll('td');
+            return {
+              bib_number: cells[0].textContent,
+              name: cells[1].textContent
+            };
+          });
+          
+          nameMap = new Map();
+          participants.forEach(p => nameMap.set(p.bib_number, p.name));
+        }
+        
+        // 過濾數據
+        let filteredCheckins = allCheckins;
+        
+        if (checkpointFilter !== 'all') {
+          filteredCheckins = filteredCheckins.filter(c => c.checkpoint === checkpointFilter);
+        }
+        
+        if (bibFilter) {
+          filteredCheckins = filteredCheckins.filter(c => 
+            c.bib_number.toLowerCase().includes(bibFilter) || 
+            (nameMap.get(c.bib_number) && nameMap.get(c.bib_number).toLowerCase().includes(bibFilter))
+          );
+        }
+        
+        // 更新表格
+        const tableBody = document.getElementById('checkinsTable').querySelector('tbody');
+        tableBody.innerHTML = '';
+        
+        if (filteredCheckins.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#000000;">暫無記錄</td></tr>';
+          return;
+        }
+        
+        filteredCheckins.forEach(c => {
+          const row = document.createElement('tr');
+          const time = new Date(c.time).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const name = nameMap.get(c.bib_number) || '未知';
+          
+          row.innerHTML = `
+            <td style="color:#000000;">${time}</td>
+            <td style="color:#000000;">${c.bib_number}</td>
+            <td style="color:#000000;">${name}</td>
+            <td style="color:#000000;">${c.checkpoint}</td>
+          `;
+          tableBody.appendChild(row);
         });
-        
-        row.innerHTML = `
-          <td style="color:#000000;">${formattedTime}</td>
-          <td style="color:#000000; font-weight: bold;">${checkin.bib_number || '未知'}</td>
-          <td style="color:#000000;">${checkin.participants?.name || '未知'}</td>
-          <td style="color:#000000;">${checkin.checkpoint || '未知'}</td>
-        `;
-        tableBody.appendChild(row);
+      } catch (error) {
+        console.error('過濾打卡記錄失敗:', error);
+      }
+    }
+
+    function setMode(mode, event) {
+      rankingMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      refreshData();
+    }
+
+    function formatTime(seconds) {
+      if (!seconds || seconds < 0) return '00:00:00';
+      
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      
+      return [
+        hours.toString().padStart(2, '0'),
+        minutes.toString().padStart(2, '0'),
+        secs.toString().padStart(2, '0')
+      ].join(':');
+    }
+
+    function logMessage(message) {
+      const timestamp = new Date().toLocaleTimeString('zh-HK');
+      const logEntry = `[${timestamp}] ${message}`;
+      
+      // 更新所有頁面的日誌
+      const logs = ['overview-log', 'ranking-log', 'checkins-log'];
+      logs.forEach(logId => {
+        const logElement = document.getElementById(logId);
+        if (logElement) {
+          logElement.textContent = logEntry + '\n' + logElement.textContent;
+          // 只保留最後10條記錄
+          const lines = logElement.textContent.split('\n');
+          if (lines.length > 10) {
+            logElement.textContent = lines.slice(0, 10).join('\n');
+          }
+        }
       });
     }
 
@@ -1052,245 +1129,289 @@
       try {
         const { data } = await adminClient
           .from('participants')
-          .select('bib_number, name')
+          .select('*')
           .order('bib_number');
         
         const tableBody = document.getElementById('participantsTableBody');
         tableBody.innerHTML = '';
         
-        if (!data || data.length === 0) {
-          tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#000000;">暫無參賽選手</td></tr>';
-          return;
+        if (data && data.length > 0) {
+          data.forEach(user => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td style="color:#000000;">${user.bib_number}</td>
+              <td style="color:#000000;">${user.name}</td>
+              <td style="text-align:center;">
+                <button onclick="deleteUser('${user.bib_number}')" style="background: #ef4444; padding: 4px 8px; font-size: 12px;">🗑️ 刪除</button>
+              </td>
+            `;
+            tableBody.appendChild(row);
+          });
+        } else {
+          tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#000000;">暫無參賽者</td></tr>';
         }
-        
-        data.forEach(participant => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td style="color:#000000; font-weight: bold;">${participant.bib_number}</td>
-            <td style="color:#000000;">${participant.name}</td>
-            <td style="text-align:center; color:#000000;">
-              <button onclick="editParticipant('${participant.bib_number}', '${participant.name}')" style="padding: 4px 8px; background: #3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;">編輯</button>
-              <button onclick="deleteParticipant('${participant.bib_number}')" style="padding: 4px 8px; background: #ef4444; color:white; border:none; border-radius:4px; cursor:pointer; margin-left:4px;">刪除</button>
-            </td>
-          `;
-          tableBody.appendChild(row);
-        });
       } catch (error) {
         console.error('加載參賽者失敗:', error);
-        logMessage(`❌ 加載參賽者失敗: ${error.message}`);
-        const tableBody = document.getElementById('participantsTableBody');
-        tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#000000;">加載失敗: ${error.message}</td></tr>`;
+        alert('加載參賽者失敗: ' + error.message);
       }
     }
 
-    function addSingleUser() {
-      const bib = document.getElementById('manualBibNumber').value.trim();
+    async function addSingleUser() {
+      const bibNumber = document.getElementById('manualBibNumber').value.trim();
       const name = document.getElementById('manualName').value.trim();
       
-      if (!bib || !name) {
-        alert('請填寫號碼和姓名');
+      if (!bibNumber || !name) {
+        alert('請填寫完整資訊');
         return;
       }
       
-      adminClient
-        .from('participants')
-        .insert([{ bib_number: bib, name: name }])
-        .then(({ error }) => {
-          if (error) {
-            alert('添加失敗: ' + error.message);
-          } else {
-            alert('添加成功');
-            document.getElementById('manualBibNumber').value = '';
-            document.getElementById('manualName').value = '';
-            loadParticipants();
-            refreshData();
-          }
-        });
+      try {
+        const { error } = await adminClient
+          .from('participants')
+          .upsert({ bib_number: bibNumber, name });
+        
+        if (error) throw error;
+        
+        alert('參賽者已添加/更新');
+        document.getElementById('manualBibNumber').value = '';
+        document.getElementById('manualName').value = '';
+        await loadParticipants();
+        refreshData();
+      } catch (error) {
+        console.error('添加參賽者失敗:', error);
+        alert('添加失敗: ' + error.message);
+      }
     }
 
-    function editParticipant(bib, name) {
-      const newName = prompt('修改姓名', name);
-      if (newName === null || newName.trim() === '') return;
-      
-      adminClient
-        .from('participants')
-        .update({ name: newName.trim() })
-        .eq('bib_number', bib)
-        .then(({ error }) => {
-          if (error) alert('修改失敗: ' + error.message);
-          else {
-            loadParticipants();
-            refreshData();
-          }
-        });
-    }
-
-    async function deleteParticipant(bib) {
-      if (!confirm(`確定要刪除號碼 ${bib} 的參賽者嗎？這將同時刪除該參賽者的所有打卡記錄。`)) return;
+    async function deleteUser(bibNumber) {
+      if (!confirm(`確定要刪除參賽者 ${bibNumber} 嗎？`)) return;
       
       try {
-        // 先刪除相關的打卡記錄
-        const { error: checkinsError } = await adminClient
+        // 先刪除相關打卡記錄
+        await adminClient
           .from('checkins')
           .delete()
-          .eq('bib_number', bib);
-          
-        if (checkinsError) {
-          throw new Error(`刪除打卡記錄失敗: ${checkinsError.message}`);
-        }
+          .eq('bib_number', bibNumber);
         
         // 再刪除參賽者
-        const { error: participantError } = await adminClient
+        const { error } = await adminClient
           .from('participants')
           .delete()
-          .eq('bib_number', bib);
-          
-        if (participantError) {
-          throw new Error(`刪除參賽者失敗: ${participantError.message}`);
-        }
+          .eq('bib_number', bibNumber);
         
-        // 刷新數據
-        loadParticipants();
+        if (error) throw error;
+        
+        alert('參賽者已刪除');
+        await loadParticipants();
         refreshData();
-        alert('刪除成功');
-        
       } catch (error) {
+        console.error('刪除參賽者失敗:', error);
         alert('刪除失敗: ' + error.message);
       }
     }
 
-    function importFromCSV() {
-      const input = document.getElementById('csvFileInput');
-      const file = input.files[0];
+    async function importFromCSV() {
+      const fileInput = document.getElementById('csvFileInput');
+      const file = fileInput.files[0];
       
       if (!file) {
-        alert('請選擇CSV文件');
+        alert('請選擇CSV檔案');
         return;
       }
       
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const content = e.target.result;
-        const lines = content.split('\n');
-        const participants = [];
+      const statusElement = document.getElementById('csvImportStatus');
+      statusElement.textContent = '正在處理...';
+      
+      try {
+        const text = await file.text();
+        const lines = text.split('\n').filter(line => line.trim());
+        const users = [];
         
         lines.forEach((line, index) => {
-          if (!line.trim()) return;
-          const [bib, name] = line.split(',').map(item => item.trim());
-          if (bib && name) {
-            participants.push({ bib_number: bib, name: name });
+          const [bibNumber, name] = line.split(',').map(item => item.trim());
+          if (bibNumber && name) {
+            users.push({ bib_number: bibNumber, name });
           } else {
-            logMessage(`⚠️ 無效行 (${index + 1}): ${line}`);
+            statusElement.textContent += `\n第 ${index + 1} 行格式錯誤: ${line}`;
           }
         });
         
-        if (participants.length === 0) {
-          alert('未找到有效數據');
+        if (users.length === 0) {
+          statusElement.textContent = '沒有有效的參賽者數據';
           return;
         }
         
-        adminClient
+        // 批量插入/更新
+        const { error } = await adminClient
           .from('participants')
-          .insert(participants)
-          .then(({ error }) => {
-            if (error) {
-              alert('導入失敗: ' + error.message);
-              logMessage(`❌ 導入失敗: ${error.message}`);
-            } else {
-              alert(`成功導入 ${participants.length} 名參賽者`);
-              logMessage(`✅ 成功導入 ${participants.length} 名參賽者`);
-              loadParticipants();
-              refreshData();
-              input.value = '';
-            }
-          });
-      };
-      reader.readAsText(file);
-    }
-
-    function exportCSV() {
-      if (!adminClient) {
-        alert('請先連線數據庫');
-        return;
+          .upsert(users);
+        
+        if (error) throw error;
+        
+        statusElement.textContent = `成功導入 ${users.length} 名參賽者`;
+        fileInput.value = '';
+        await loadParticipants();
+        refreshData();
+        
+      } catch (error) {
+        console.error('CSV導入失敗:', error);
+        statusElement.textContent = '導入失敗: ' + error.message;
       }
-      
-      Promise.all([
-        adminClient.from('participants').select('*'),
-        adminClient.from('checkins').select('*')
-      ]).then(([participantsResult, checkinsResult]) => {
-        const participants = participantsResult.data || [];
-        const checkins = checkinsResult.data || [];
-        
-        // 導出參賽者
-        let csv = "\uFEFF號碼,姓名\n"; // BOM 解決中文亂碼
-        participants.forEach(p => {
-          csv += `${p.bib_number},${p.name || ''}\n`;
-        });
-        
-        // 導出打卡記錄
-        csv += "\n時間,號碼,檢查點\n";
-        checkins.forEach(c => {
-          const timeStr = new Date(c.time).toLocaleString('zh-HK');
-          csv += `${timeStr},${c.bib_number || ''},${c.checkpoint || ''}\n`;
-        });
-        
-        // 下載文件
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.setAttribute('href', url);
-        a.setAttribute('download', `race_data_${new Date().toISOString().slice(0,10)}.csv`);
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      });
     }
 
     async function clearAllData() {
-      if (!confirm('確定要清空所有數據嗎？此操作不可恢復！')) return;
+      if (!confirm('⚠️ 警告！這將刪除所有參賽者和打卡記錄。確定要繼續嗎？')) return;
+      if (!confirm('二次確認：確定要清空所有數據？此操作無法撤銷！')) return;
       
+      try {
+        // 先刪除打卡記錄
+        await adminClient.from('checkins').delete().neq('id', '');
+        // 再刪除參賽者
+        await adminClient.from('participants').delete().neq('bib_number', '');
+        
+        alert('所有數據已清空');
+        await loadParticipants();
+        refreshData();
+      } catch (error) {
+        console.error('清空數據失敗:', error);
+        alert('清空失敗: ' + error.message);
+      }
+    }
+
+    // 完整的匯出CSV函數 - 包含排名、號碼、姓名、起跑時間、完賽時間、用時
+    async function exportCSV() {
       if (!adminClient) {
         alert('請先連線數據庫');
         return;
       }
       
       try {
-        // 🔧 最終修復：添加永真的WHERE條件繞過Supabase的限制
-        // 先刪除所有打卡記錄（添加 WHERE id IS NOT NULL 條件）
-        const { error: checkinsError } = await adminClient
-          .from('checkins')
-          .delete()
-          .not('id', 'is', null); // 永真條件，匹配所有記錄
-          
-        if (checkinsError) {
-          throw new Error(`清空打卡記錄失敗: ${checkinsError.message}`);
-        }
-        
-        // 再刪除所有參賽者（添加 WHERE bib_number IS NOT NULL 條件）
-        const { error: participantsError } = await adminClient
+        // 獲取所有參賽者數據
+        const { data: participants } = await adminClient
           .from('participants')
-          .delete()
-          .not('bib_number', 'is', null); // 永真條件，匹配所有記錄
+          .select('bib_number, name');
         
-        if (participantsError) {
-          throw new Error(`清空參賽者失敗: ${participantsError.message}`);
+        if (!participants || participants.length === 0) {
+          alert('沒有參賽者數據可匯出');
+          return;
         }
         
-        alert('所有數據已清空');
-        refreshData();
-        loadParticipants();
+        // 獲取所有起點和終點記錄
+        const { data: startCheckins } = await adminClient
+          .from('checkins')
+          .select('bib_number, time')
+          .eq('checkpoint', 'START');
+        
+        const { data: finishCheckins } = await adminClient
+          .from('checkins')
+          .select('bib_number, time')
+          .eq('checkpoint', 'FINISH');
+        
+        // 創建時間映射（取最早的起點時間，最早的終點時間）
+        const startMap = new Map();
+        if (startCheckins) {
+          startCheckins.forEach(c => {
+            if (!startMap.has(c.bib_number) || new Date(c.time) < new Date(startMap.get(c.bib_number))) {
+              startMap.set(c.bib_number, c.time);
+            }
+          });
+        }
+        
+        const finishMap = new Map();
+        if (finishCheckins) {
+          finishCheckins.forEach(c => {
+            if (!finishMap.has(c.bib_number) || new Date(c.time) < new Date(finishMap.get(c.bib_number))) {
+              finishMap.set(c.bib_number, c.time);
+            }
+          });
+        }
+        
+        // 準備匯出數據
+        const exportData = participants.map(participant => {
+          const startTime = startMap.get(participant.bib_number);
+          const finishTime = finishMap.get(participant.bib_number);
+          
+          // 格式化時間
+          const formatDate = (dateStr) => {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-HK', { 
+              year: 'numeric', 
+              month: '2-digit', 
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            });
+          };
+          
+          // 計算用時
+          let duration = '';
+          if (startTime && finishTime) {
+            const diffSeconds = (new Date(finishTime).getTime() - new Date(startTime).getTime()) / 1000;
+            duration = formatTime(diffSeconds);
+          }
+          
+          return {
+            bib_number: participant.bib_number,
+            name: participant.name,
+            start_time: formatDate(startTime),
+            finish_time: formatDate(finishTime),
+            duration: duration
+          };
+        }).filter(item => item.start_time); // 只匯出有起跑時間的選手
+        
+        // 按終點時間排序（模擬排名）
+        exportData.sort((a, b) => {
+          if (a.finish_time && b.finish_time) {
+            return new Date(a.finish_time) - new Date(b.finish_time);
+          } else if (a.finish_time) {
+            return -1;
+          } else if (b.finish_time) {
+            return 1;
+          } else {
+            return new Date(a.start_time) - new Date(b.start_time);
+          }
+        });
+        
+        // 建立CSV內容
+        let csvContent = '排名,號碼,姓名,起跑時間,完賽時間,用時\n';
+        
+        exportData.forEach((item, index) => {
+          const row = [
+            index + 1, // 排名
+            item.bib_number,
+            item.name,
+            item.start_time || '',
+            item.finish_time || '',
+            item.duration || ''
+          ].map(field => {
+            // 處理包含逗號的欄位，用引號包起來
+            return field.includes(',') ? `"${field}"` : field;
+          }).join(',');
+          
+          csvContent += row + '\n';
+        });
+        
+        // 創建並下載CSV檔案
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Chinese encoding
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        
+        link.href = url;
+        link.download = `賽事成績_${new Date().toLocaleDateString('zh-HK').replace(/\//g, '-')}.csv`;
+        link.click();
+        
+        // 釋放URL物件
+        URL.revokeObjectURL(url);
+        
+        logMessage(`💾 已匯出 ${exportData.length} 名參賽者的成績數據`);
+        alert(`成功匯出 ${exportData.length} 名參賽者的成績數據`);
         
       } catch (error) {
-        alert(error.message);
+        console.error('匯出CSV失敗:', error);
+        alert('匯出失敗: ' + error.message);
       }
-    }
-
-    function setMode(mode, event) {
-      rankingMode = mode;
-      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      refreshData();
     }
 
     function showManageUsersModal() {
@@ -1302,57 +1423,11 @@
       document.getElementById('manageUsersModal').style.display = 'none';
     }
 
-    function logMessage(message) {
-      // 獲取當前激活的頁面
-      let activePageId = 'overview';
-      const activePage = document.querySelector('.page.active');
-      if (activePage) {
-        activePageId = activePage.id.replace('-page', '');
+    // 防止點擊模態框背景關閉
+    document.getElementById('manageUsersModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        hideManageUsersModal();
       }
-      
-      // 記錄到當前頁面的日誌區域
-      const logElement = document.getElementById(`${activePageId}-log`);
-      const timestamp = new Date().toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const logEntry = document.createElement('div');
-      logEntry.textContent = `[${timestamp}] ${message}`;
-      logEntry.style.color = '#000000';
-      logEntry.style.margin = '4px 0';
-      
-      // 添加到日誌頂部
-      if (logElement.firstChild) {
-        logElement.insertBefore(logEntry, logElement.firstChild);
-      } else {
-        logElement.appendChild(logEntry);
-      }
-      
-      // 只保留最新的20條記錄
-      const entries = logElement.querySelectorAll('div');
-      if (entries.length > 20) {
-        for (let i = 20; i < entries.length; i++) {
-          logElement.removeChild(entries[i]);
-        }
-      }
-      
-      logElement.scrollTop = 0;
-    }
-
-    function formatTime(seconds) {
-      // 確保輸入是數字
-      if (isNaN(seconds) || seconds < 0) return '00:00:00';
-      
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = Math.floor(seconds % 60);
-      
-      // 格式化為兩位數
-      const formatDigit = (num) => num.toString().padStart(2, '0');
-      
-      return `${formatDigit(h)}:${formatDigit(m)}:${formatDigit(s)}`;
-    }
-    
-    // 頁面關閉時清除自動刷新
-    window.addEventListener('beforeunload', () => {
-      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
     });
   </script>
 </body>
