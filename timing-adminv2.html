@@ -31,12 +31,12 @@
     .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
     .stat-card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
     .stat-number { font-size: 36px; font-weight: bold; color: #3b82f6; }
-    .stat-label { color: #64748b; margin-top: 8px; }
+    .stat-label { color: #000000; margin-top: 8px; font-weight: 500; }
     .chart-container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 24px; width: 25%; margin-left: auto; margin-right: auto; }
     
     /* 导航样式 */
     .navigation { margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
-    .nav-btn { padding: 8px 16px; margin-right: 10px; background: #f1f5f9; color: #000000; }
+    .nav-btn { padding: 8px 16px; margin-right: 10px; background: #f1f5f9; color: #000000; font-weight: 500; }
     .nav-btn.active { background: #3b82f6; color: white; }
     
     /* 页面容器样式 */
@@ -476,59 +476,64 @@
     }
 
     async function loadDashboardStats() {
-      // 1. 总参赛人数
-      const { count: totalRunners } = await adminClient
-        .from('participants')
-        .select('*', { count: 'exact', head: true });
-      
-      // 2. 已出发人数
-      const { count: startedRunners } = await adminClient
-        .from('checkins')
-        .select('DISTINCT bib_number', { count: 'exact', head: true })
-        .eq('checkpoint', 'START');
-      
-      // 3. 已完赛人数
-      const { count: finishedRunners } = await adminClient
-        .from('checkins')
-        .select('DISTINCT bib_number', { count: 'exact', head: true })
-        .eq('checkpoint', 'FINISH');
-      
-      // 4. 平均完赛时间
-      let avgTime = '00:00';
-      if (finishedRunners > 0) {
-        const { data: finishTimes } = await adminClient
-          .from('checkins')
-          .select(`
-            bib_number,
-            time,
-            start_time:checkins!checkins_bib_number_fkey (
-              time
-            )
-          `)
-          .eq('checkpoint', 'FINISH')
-          .eq('checkins.checkpoint', 'START');
+      try {
+        // 1. 总参赛人数
+        const { count: totalRunners } = await adminClient
+          .from('participants')
+          .select('*', { count: 'exact', head: true });
         
-        if (finishTimes && finishTimes.length > 0) {
-          const totalSeconds = finishTimes.reduce((sum, entry) => {
-            if (!entry.start_time || !entry.start_time.time) return sum;
-            const start = new Date(entry.start_time.time).getTime();
-            const finish = new Date(entry.time).getTime();
-            return sum + (finish - start) / 1000;
-          }, 0);
+        // 2. 已出发人数
+        const { count: startedRunners } = await adminClient
+          .from('checkins')
+          .select('DISTINCT bib_number', { count: 'exact', head: true })
+          .eq('checkpoint', 'START');
+        
+        // 3. 已完赛人数
+        const { count: finishedRunners } = await adminClient
+          .from('checkins')
+          .select('DISTINCT bib_number', { count: 'exact', head: true })
+          .eq('checkpoint', 'FINISH');
+        
+        // 4. 平均完赛时间
+        let avgTime = '00:00';
+        if (finishedRunners > 0) {
+          const { data: finishTimes } = await adminClient
+            .from('checkins')
+            .select(`
+              bib_number,
+              time,
+              start_time:checkins!checkins_bib_number_fkey (
+                time
+              )
+            `)
+            .eq('checkpoint', 'FINISH')
+            .eq('checkins.checkpoint', 'START');
           
-          const avgSeconds = totalSeconds / finishTimes.length;
-          avgTime = formatTime(avgSeconds);
+          if (finishTimes && finishTimes.length > 0) {
+            const totalSeconds = finishTimes.reduce((sum, entry) => {
+              if (!entry.start_time || !entry.start_time.time) return sum;
+              const start = new Date(entry.start_time.time).getTime();
+              const finish = new Date(entry.time).getTime();
+              return sum + (finish - start) / 1000;
+            }, 0);
+            
+            const avgSeconds = totalSeconds / finishTimes.length;
+            avgTime = formatTime(avgSeconds);
+          }
         }
+        
+        // 更新UI
+        document.getElementById('totalRunners').textContent = totalRunners || 0;
+        document.getElementById('startedRunners').textContent = startedRunners || 0;
+        document.getElementById('finishedRunners').textContent = finishedRunners || 0;
+        document.getElementById('avgTime').textContent = avgTime;
+        
+        // 更新图表
+        updateProgressChart(totalRunners || 0, startedRunners || 0, finishedRunners || 0);
+      } catch (error) {
+        console.error('加载统计数据失败:', error);
+        logMessage(`❌ 加载统计数据失败: ${error.message}`);
       }
-      
-      // 更新UI
-      document.getElementById('totalRunners').textContent = totalRunners || 0;
-      document.getElementById('startedRunners').textContent = startedRunners || 0;
-      document.getElementById('finishedRunners').textContent = finishedRunners || 0;
-      document.getElementById('avgTime').textContent = avgTime;
-      
-      // 更新图表
-      updateProgressChart(totalRunners || 0, startedRunners || 0, finishedRunners || 0);
     }
 
     function updateProgressChart(total, started, finished) {
@@ -561,155 +566,170 @@
     }
 
     async function loadResults() {
-      const { data: participants } = await adminClient
-        .from('participants')
-        .select('bib_number, name');
-      
-      const { data: startCheckins } = await adminClient
-        .from('checkins')
-        .select('bib_number, time')
-        .eq('checkpoint', 'START')
-        .order('time');
-      
-      const { data: finishCheckins } = await adminClient
-        .from('checkins')
-        .select('bib_number, time')
-        .eq('checkpoint', 'FINISH')
-        .order('time');
-      
-      // 合并数据
-      const results = participants.map(participant => {
-        const start = startCheckins.find(c => c.bib_number === participant.bib_number);
-        const finish = finishCheckins.find(c => c.bib_number === participant.bib_number);
+      try {
+        const { data: participants } = await adminClient
+          .from('participants')
+          .select('bib_number, name');
         
-        return {
-          bib_number: participant.bib_number,
-          name: participant.name,
-          start_time: start?.time,
-          finish_time: finish?.time,
-          duration: start && finish 
-            ? (new Date(finish.time).getTime() - new Date(start.time).getTime()) / 1000 
-            : null
-        };
-      }).filter(r => r.start_time);
-      
-      // 排序
-      if (rankingMode === 'gun') {
-        results.sort((a, b) => a.finish_time ? (b.finish_time ? new Date(a.finish_time) - new Date(b.finish_time) : -1) : 1);
-      } else {
-        results.sort((a, b) => a.duration ? (b.duration ? a.duration - b.duration : -1) : 1);
+        const { data: startCheckins } = await adminClient
+          .from('checkins')
+          .select('bib_number, time')
+          .eq('checkpoint', 'START')
+          .order('time');
+        
+        const { data: finishCheckins } = await adminClient
+          .from('checkins')
+          .select('bib_number, time')
+          .eq('checkpoint', 'FINISH')
+          .order('time');
+        
+        // 合并数据
+        const results = participants.map(participant => {
+          const start = startCheckins.find(c => c.bib_number === participant.bib_number);
+          const finish = finishCheckins.find(c => c.bib_number === participant.bib_number);
+          
+          return {
+            bib_number: participant.bib_number,
+            name: participant.name,
+            start_time: start?.time,
+            finish_time: finish?.time,
+            duration: start && finish 
+              ? (new Date(finish.time).getTime() - new Date(start.time).getTime()) / 1000 
+              : null
+          };
+        }).filter(r => r.start_time);
+        
+        // 排序
+        if (rankingMode === 'gun') {
+          results.sort((a, b) => a.finish_time ? (b.finish_time ? new Date(a.finish_time) - new Date(b.finish_time) : -1) : 1);
+        } else {
+          results.sort((a, b) => a.duration ? (b.duration ? a.duration - b.duration : -1) : 1);
+        }
+        
+        // 更新表格
+        const tableBody = document.getElementById('resultsTable').querySelector('tbody');
+        tableBody.innerHTML = '';
+        
+        results.forEach((result, index) => {
+          const row = document.createElement('tr');
+          if (index < 3) row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+          
+          row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${result.bib_number}</td>
+            <td>${result.name}</td>
+            <td>${result.start_time ? new Date(result.start_time).toLocaleTimeString() : '-'}</td>
+            <td>${result.finish_time ? new Date(result.finish_time).toLocaleTimeString() : '-'}</td>
+            <td>${result.duration ? formatTime(result.duration) : '-'}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('加载结果失败:', error);
+        logMessage(`❌ 加载结果失败: ${error.message}`);
       }
-      
-      // 更新表格
-      const tableBody = document.getElementById('resultsTable').querySelector('tbody');
-      tableBody.innerHTML = '';
-      
-      results.forEach((result, index) => {
-        const row = document.createElement('tr');
-        if (index < 3) row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
-        
-        row.innerHTML = `
-          <td>${index + 1}</td>
-          <td>${result.bib_number}</td>
-          <td>${result.name}</td>
-          <td>${result.start_time ? new Date(result.start_time).toLocaleTimeString() : '-'}</td>
-          <td>${result.finish_time ? new Date(result.finish_time).toLocaleTimeString() : '-'}</td>
-          <td>${result.duration ? formatTime(result.duration) : '-'}</td>
-        `;
-        tableBody.appendChild(row);
-      });
     }
 
     async function loadRankingData() {
-      const filter = document.getElementById('rankingCheckpointFilter').value;
-      
-      const { data: participants } = await adminClient
-        .from('participants')
-        .select('bib_number, name');
-      
-      const { data: checkins } = await adminClient
-        .from('checkins')
-        .select('bib_number, checkpoint, time')
-        .order('time');
-      
-      // 处理数据
-      const runnerData = {};
-      
-      participants.forEach(p => {
-        runnerData[p.bib_number] = {
-          bib_number: p.bib_number,
-          name: p.name,
-          checkpoints: {},
-          total_time: null
-        };
-      });
-      
-      checkins.forEach(c => {
-        if (!runnerData[c.bib_number]) return;
-        if (filter !== 'all' && c.checkpoint !== filter) return;
+      try {
+        const filter = document.getElementById('rankingCheckpointFilter').value;
         
-        runnerData[c.bib_number].checkpoints[c.checkpoint] = c.time;
-      });
-      
-      // 计算总时间
-      Object.values(runnerData).forEach(runner => {
-        const start = runner.checkpoints.START;
-        const finish = runner.checkpoints.FINISH;
+        const { data: participants } = await adminClient
+          .from('participants')
+          .select('bib_number, name');
         
-        if (start && finish) {
-          runner.total_time = (new Date(finish).getTime() - new Date(start).getTime()) / 1000;
+        const { data: checkins } = await adminClient
+          .from('checkins')
+          .select('bib_number, checkpoint, time')
+          .order('time');
+        
+        // 处理数据
+        const runnerData = {};
+        
+        participants.forEach(p => {
+          runnerData[p.bib_number] = {
+            bib_number: p.bib_number,
+            name: p.name,
+            checkpoints: {},
+            total_time: null
+          };
+        });
+        
+        checkins.forEach(c => {
+          if (!runnerData[c.bib_number]) return;
+          if (filter !== 'all' && c.checkpoint !== filter) return;
+          
+          runnerData[c.bib_number].checkpoints[c.checkpoint] = c.time;
+        });
+        
+        // 计算总时间
+        Object.values(runnerData).forEach(runner => {
+          const start = runner.checkpoints.START;
+          const finish = runner.checkpoints.FINISH;
+          
+          if (start && finish) {
+            runner.total_time = (new Date(finish).getTime() - new Date(start).getTime()) / 1000;
+          }
+        });
+        
+        // 排序
+        const rankedRunners = Object.values(runnerData).filter(r => r.total_time !== null);
+        
+        if (rankingMode === 'gun') {
+          rankedRunners.sort((a, b) => new Date(a.checkpoints.FINISH) - new Date(b.checkpoints.FINISH));
+        } else {
+          rankedRunners.sort((a, b) => a.total_time - b.total_time);
         }
-      });
-      
-      // 排序
-      const rankedRunners = Object.values(runnerData).filter(r => r.total_time !== null);
-      
-      if (rankingMode === 'gun') {
-        rankedRunners.sort((a, b) => new Date(a.checkpoints.FINISH) - new Date(b.checkpoints.FINISH));
-      } else {
-        rankedRunners.sort((a, b) => a.total_time - b.total_time);
+        
+        // 更新表格
+        const tableBody = document.getElementById('detailedRankingTable').querySelector('tbody');
+        tableBody.innerHTML = '';
+        
+        rankedRunners.forEach((runner, index) => {
+          const row = document.createElement('tr');
+          if (index < 3) row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+          
+          // 格式化检查点时间
+          const checkpointTimes = checkpoints.map(cp => {
+            const time = runner.checkpoints[cp.code];
+            return `${cp.name}: ${time ? new Date(time).toLocaleTimeString() : '-'}`;
+          }).join('<br>');
+          
+          row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${runner.bib_number}</td>
+            <td>${runner.name}</td>
+            <td>${checkpointTimes}</td>
+            <td>${runner.total_time ? formatTime(runner.total_time) : '-'}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('加载排名数据失败:', error);
+        logMessage(`❌ 加载排名数据失败: ${error.message}`);
       }
-      
-      // 更新表格
-      const tableBody = document.getElementById('detailedRankingTable').querySelector('tbody');
-      tableBody.innerHTML = '';
-      
-      rankedRunners.forEach((runner, index) => {
-        const row = document.createElement('tr');
-        if (index < 3) row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
-        
-        // 格式化检查点时间
-        const checkpointTimes = checkpoints.map(cp => {
-          const time = runner.checkpoints[cp.code];
-          return `${cp.name}: ${time ? new Date(time).toLocaleTimeString() : '-'}`;
-        }).join('<br>');
-        
-        row.innerHTML = `
-          <td>${index + 1}</td>
-          <td>${runner.bib_number}</td>
-          <td>${runner.name}</td>
-          <td>${checkpointTimes}</td>
-          <td>${runner.total_time ? formatTime(runner.total_time) : '-'}</td>
-        `;
-        tableBody.appendChild(row);
-      });
     }
 
     async function loadCheckinsData() {
-      const { data: checkins } = await adminClient
-        .from('checkins')
-        .select(`
-          time,
-          checkpoint,
-          bib_number,
-          participants (
-            name
-          )
-        `)
-        .order('time', { ascending: false });
-      
-      allCheckins = checkins || [];
-      filterCheckins();
+      try {
+        const { data: checkins } = await adminClient
+          .from('checkins')
+          .select(`
+            time,
+            checkpoint,
+            bib_number,
+            participants (
+              name
+            )
+          `)
+          .order('time', { ascending: false });
+        
+        allCheckins = checkins || [];
+        filterCheckins();
+      } catch (error) {
+        console.error('加载打卡数据失败:', error);
+        logMessage(`❌ 加载打卡数据失败: ${error.message}`);
+      }
     }
 
     function filterCheckins() {
@@ -740,26 +760,31 @@
     async function loadParticipants() {
       if (!adminClient) return;
       
-      const { data } = await adminClient
-        .from('participants')
-        .select('bib_number, name')
-        .order('bib_number');
-      
-      const tableBody = document.getElementById('participantsTableBody');
-      tableBody.innerHTML = '';
-      
-      data.forEach(participant => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${participant.bib_number}</td>
-          <td>${participant.name}</td>
-          <td>
-            <button onclick="editParticipant('${participant.bib_number}', '${participant.name}')" style="padding: 4px 8px; background: #3b82f6;">編輯</button>
-            <button onclick="deleteParticipant('${participant.bib_number}')" style="padding: 4px 8px; background: #ef4444;">刪除</button>
-          </td>
-        `;
-        tableBody.appendChild(row);
-      });
+      try {
+        const { data } = await adminClient
+          .from('participants')
+          .select('bib_number, name')
+          .order('bib_number');
+        
+        const tableBody = document.getElementById('participantsTableBody');
+        tableBody.innerHTML = '';
+        
+        data.forEach(participant => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${participant.bib_number}</td>
+            <td>${participant.name}</td>
+            <td>
+              <button onclick="editParticipant('${participant.bib_number}', '${participant.name}')" style="padding: 4px 8px; background: #3b82f6;">編輯</button>
+              <button onclick="deleteParticipant('${participant.bib_number}')" style="padding: 4px 8px; background: #ef4444;">刪除</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('加载参赛者失败:', error);
+        logMessage(`❌ 加载参赛者失败: ${error.message}`);
+      }
     }
 
     function addSingleUser() {
@@ -800,17 +825,37 @@
         });
     }
 
-    function deleteParticipant(bib) {
-      if (!confirm(`確定要刪除號碼 ${bib} 的參賽者嗎？`)) return;
+    async function deleteParticipant(bib) {
+      if (!confirm(`確定要刪除號碼 ${bib} 的參賽者嗎？這將同時刪除該參賽者的所有打卡記錄。`)) return;
       
-      adminClient
-        .from('participants')
-        .delete()
-        .eq('bib_number', bib)
-        .then(({ error }) => {
-          if (error) alert('刪除失敗: ' + error.message);
-          else loadParticipants();
-        });
+      try {
+        // 先删除相关的打卡记录
+        const { error: checkinsError } = await adminClient
+          .from('checkins')
+          .delete()
+          .eq('bib_number', bib);
+          
+        if (checkinsError) {
+          throw new Error(`删除打卡记录失败: ${checkinsError.message}`);
+        }
+        
+        // 再删除参赛者
+        const { error: participantError } = await adminClient
+          .from('participants')
+          .delete()
+          .eq('bib_number', bib);
+          
+        if (participantError) {
+          throw new Error(`删除参赛者失败: ${participantError.message}`);
+        }
+        
+        // 刷新数据
+        loadParticipants();
+        refreshData();
+        
+      } catch (error) {
+        alert('删除失败: ' + error.message);
+      }
     }
 
     function importFromCSV() {
@@ -899,7 +944,7 @@
       });
     }
 
-    function clearAllData() {
+    async function clearAllData() {
       if (!confirm('確定要清空所有數據嗎？此操作不可恢復！')) return;
       
       if (!adminClient) {
@@ -907,29 +952,34 @@
         return;
       }
       
-      // 先删除打卡记录，再删除参赛者
-      adminClient
-        .from('checkins')
-        .delete()
-        .then(({ error }) => {
-          if (error) {
-            alert('清空打卡記錄失敗: ' + error.message);
-            return;
-          }
+      try {
+        // 先删除打卡记录（使用事件ID过滤）
+        const { error: checkinsError } = await adminClient
+          .from('checkins')
+          .delete()
+          .neq('bib_number', 'nonexistent_value'); // 这是一个技巧，匹配所有记录但满足WHERE子句要求
           
-          adminClient
-            .from('participants')
-            .delete()
-            .then(({ error }) => {
-              if (error) {
-                alert('清空參賽者失敗: ' + error.message);
-              } else {
-                alert('所有數據已清空');
-                refreshData();
-                loadParticipants();
-              }
-            });
-        });
+        if (checkinsError) {
+          throw new Error(`清空打卡記錄失敗: ${checkinsError.message}`);
+        }
+        
+        // 再删除参赛者
+        const { error: participantsError } = await adminClient
+          .from('participants')
+          .delete()
+          .neq('bib_number', 'nonexistent_value'); // 同上
+        
+        if (participantsError) {
+          throw new Error(`清空參賽者失敗: ${participantsError.message}`);
+        }
+        
+        alert('所有數據已清空');
+        refreshData();
+        loadParticipants();
+        
+      } catch (error) {
+        alert(error.message);
+      }
     }
 
     function setMode(mode, event) {
