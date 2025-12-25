@@ -1256,21 +1256,20 @@
       }
       
       try {
-        // 先刪除所有打卡記錄
+        // 🔧 修復：移除基於UUID的WHERE條件，直接刪除所有記錄
+        // 先刪除所有打卡記錄（無需WHERE條件）
         const { error: checkinsError } = await adminClient
           .from('checkins')
-          .delete()
-          .gte('id', 0); // 使用有效的WHERE條件刪除所有記錄
+          .delete(); // 刪除所有記錄，不需要WHERE條件
           
         if (checkinsError) {
           throw new Error(`清空打卡記錄失敗: ${checkinsError.message}`);
         }
         
-        // 再刪除所有參賽者
+        // 再刪除所有參賽者（無需WHERE條件）
         const { error: participantsError } = await adminClient
           .from('participants')
-          .delete()
-          .gte('id', 0); // 使用有效的WHERE條件刪除所有記錄
+          .delete(); // 刪除所有記錄，不需要WHERE條件
         
         if (participantsError) {
           throw new Error(`清空參賽者失敗: ${participantsError.message}`);
