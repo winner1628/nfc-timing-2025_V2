@@ -1,5 +1,7 @@
 # nfc-timing-2025_V2
 
+
+
 NFC 跑手計時系統 (NFC Race Timing System)
 一個基於網頁的全方位賽事計時與管理系統，採用 NFC 技術追蹤參賽者打卡記錄，後端依託 Supabase (PostgreSQL) 進行數據儲存與即時更新，透過 Chart.js 實現數據視覺化，並以原生 JavaScript 開發前端介面，專為賽事籌辦方設計。
 📋 專案概述
