@@ -1256,20 +1256,22 @@
       }
       
       try {
-        // 🔧 修復：移除基於UUID的WHERE條件，直接刪除所有記錄
-        // 先刪除所有打卡記錄（無需WHERE條件）
+        // 🔧 最終修復：添加永真的WHERE條件繞過Supabase的限制
+        // 先刪除所有打卡記錄（添加 WHERE id IS NOT NULL 條件）
         const { error: checkinsError } = await adminClient
           .from('checkins')
-          .delete(); // 刪除所有記錄，不需要WHERE條件
+          .delete()
+          .not('id', 'is', null); // 永真條件，匹配所有記錄
           
         if (checkinsError) {
           throw new Error(`清空打卡記錄失敗: ${checkinsError.message}`);
         }
         
-        // 再刪除所有參賽者（無需WHERE條件）
+        // 再刪除所有參賽者（添加 WHERE bib_number IS NOT NULL 條件）
         const { error: participantsError } = await adminClient
           .from('participants')
-          .delete(); // 刪除所有記錄，不需要WHERE條件
+          .delete()
+          .not('bib_number', 'is', null); // 永真條件，匹配所有記錄
         
         if (participantsError) {
           throw new Error(`清空參賽者失敗: ${participantsError.message}`);
