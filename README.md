@@ -1,5 +1,13 @@
 # nfc-timing-2025_V2
 
+project
+<img width="230" height="230" alt="qrcode" src="https://github.com/user-attachments/assets/5eeb6420-943c-4c51-885c-ab35460f11ae" />
+
+https://winner1628.github.io/nfc-timing-2025_V2/timing-adminv2.html
+<img width="230" height="230" alt="qrcode (1)" src="https://github.com/user-attachments/assets/d21c8f3d-e755-4e83-8ef7-3c19ae955325" />
+
+https://winner1628.github.io/nfc-timing-2025_V2/timing-phonev2.html
+<img width="230" height="230" alt="qrcode (2)" src="https://github.com/user-attachments/assets/6b9880f8-1e8d-4665-9305-433a6c74e96f" />
 
 
 NFC 跑手計時系統 (NFC Race Timing System)
