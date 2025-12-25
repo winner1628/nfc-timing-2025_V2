@@ -10,6 +10,190 @@ https://winner1628.github.io/nfc-timing-2025_V2/timing-phonev2.html
 <img width="230" height="230" alt="qrcode (2)" src="https://github.com/user-attachments/assets/6b9880f8-1e8d-4665-9305-433a6c74e96f" />
 
 
+# NFC 跑手計時系統 - 專案總結（修正版）
+## 總覽
+此專案為基於 Supabase（PostgreSQL）後端資料庫與原生 JavaScript/HTML/CSS 前端開發的**網頁式 NFC 跑手計時管理系統**，主要功能包含追蹤跑手在賽事檢查點的打卡紀錄、計算賽事用時、生成排名，以及提供後台管理能力（匯入/匯出數據、參賽者管理）。
+
+---
+
+## 資料庫架構（Supabase/PostgreSQL）
+### 1. 核心資料庫：Supabase（PostgreSQL）
+所有數據儲存於 Supabase（託管式 PostgreSQL），並透過即時訂閱功能實現打卡事件的即時更新。
+
+### 2. 完整資料庫表格（DDL 建立語句）
+確認實際使用的表格共 **4 個**（修正先前疏漏），以下為完整定義：
+
+#### 表格 1：`participants`（賽事參賽者）
+儲存跑手基本資訊（參賽號碼、姓名）
+```sql
+CREATE TABLE public.participants (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  bib_number TEXT NOT NULL UNIQUE, -- 參賽號碼（唯一識別）
+  name TEXT NOT NULL, -- 參賽者姓名
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- 建立時間
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() -- 更新時間
+);
+
+-- 加速參賽號碼查詢的索引
+CREATE INDEX idx_participants_bib_number ON public.participants(bib_number);
+```
+
+#### 表格 2：`checkins`（打卡紀錄）
+儲存所有 NFC 打卡事件（跑手在各檢查點的打卡紀錄）
+```sql
+CREATE TABLE public.checkins (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  bib_number TEXT NOT NULL, -- 對應 participants.bib_number
+  checkpoint TEXT NOT NULL, -- 檢查點代碼（START/FINISH/CP1/CP2...）
+  time TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- 打卡時間
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- 紀錄建立時間
+  
+  -- 外鍵約束（確保參照完整性）
+  CONSTRAINT fk_checkins_bib_number 
+    FOREIGN KEY (bib_number) 
+    REFERENCES public.participants(bib_number)
+    ON DELETE CASCADE -- 刪除參賽者時自動刪除對應打卡紀錄
+);
+
+-- 優化查詢效能的索引
+CREATE INDEX idx_checkins_bib_number ON public.checkins(bib_number);
+CREATE INDEX idx_checkins_checkpoint ON public.checkins(checkpoint);
+CREATE INDEX idx_checkins_time ON public.checkins(time);
+```
+
+#### 表格 3：`checkpoint_configs`（檢查點配置）
+儲存賽事檢查點的元數據（可透過後台介面配置）
+```sql
+CREATE TABLE public.checkpoint_configs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id TEXT DEFAULT 'default' NOT NULL, -- 賽事ID（支援多賽事管理）
+  code TEXT NOT NULL, -- 檢查點代碼（START/FINISH/CP1...）
+  name TEXT NOT NULL, -- 檢查點名稱（起點/終點/檢查點1...）
+  order_index INTEGER NOT NULL, -- 檢查點順序
+  is_required BOOLEAN DEFAULT TRUE, -- 是否為必經檢查點
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- 賽事+檢查點代碼唯一約束
+  CONSTRAINT unique_event_checkpoint_code 
+    UNIQUE (event_id, code)
+);
+
+-- 索引優化
+CREATE INDEX idx_checkpoint_configs_event_id ON public.checkpoint_configs(event_id);
+CREATE INDEX idx_checkpoint_configs_order_index ON public.checkpoint_configs(order_index);
+```
+
+#### 表格 4：`race_stats`（賽事統計）
+**先前疏漏的表格**，用於儲存賽事整體統計數據（減少前端即時計算壓力）
+```sql
+CREATE TABLE public.race_stats (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  event_id TEXT DEFAULT 'default' NOT NULL, -- 對應賽事ID
+  total_runners INTEGER DEFAULT 0, -- 總參賽人數
+  started_runners INTEGER DEFAULT 0, -- 已出發人數
+  finished_runners INTEGER DEFAULT 0, -- 已完賽人數
+  avg_finish_time INTEGER DEFAULT 0, -- 平均完賽時間（秒）
+  last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- 最後更新時間
+  
+  -- 單一賽事僅保留一筆統計紀錄
+  CONSTRAINT unique_race_stats_event_id 
+    UNIQUE (event_id)
+);
+
+-- 索引優化
+CREATE INDEX idx_race_stats_event_id ON public.race_stats(event_id);
+```
+
+### 3. Supabase 即時功能設定
+啟用 `checkins`、`participants` 與 `race_stats` 表格的即時訂閱，實現前端即時更新：
+```sql
+-- 啟用公開結構的即時發布
+ALTER PUBLICATION supabase_realtime 
+ADD TABLE public.checkins, public.participants, public.race_stats, public.checkpoint_configs;
+
+-- 授予匿名/已驗證使用者權限
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.participants TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.checkins TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.checkpoint_configs TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.race_stats TO anon, authenticated;
+```
+
+---
+
+## 資料庫核心特性
+### 1. 數據關聯性
+- **一對多關係**：一個參賽者（bib_number）對應多筆打卡紀錄
+- **級聯刪除**：刪除參賽者時自動刪除其所有打卡紀錄
+- **參照完整性**：外鍵約束防止無效的參賽號碼出現在打卡紀錄中
+- **唯一約束**：確保參賽號碼、賽事+檢查點代碼、賽事統計紀錄不重複
+
+### 2. 索引策略
+| 索引名稱 | 對應表格 | 用途 |
+|----------|----------|------|
+| `idx_participants_bib_number` | `participants` | 快速透過參賽號碼查詢跑手資訊 |
+| `idx_checkins_bib_number` | `checkins` | 快速查詢特定跑手的所有打卡紀錄 |
+| `idx_checkins_checkpoint` | `checkins` | 快速篩選特定檢查點的打卡紀錄（如起點/終點） |
+| `idx_checkins_time` | `checkins` | 快速按時間排序/篩選打卡紀錄 |
+| `idx_checkpoint_configs_event_id` | `checkpoint_configs` | 快速查詢特定賽事的檢查點配置 |
+| `idx_race_stats_event_id` | `race_stats` | 快速查詢特定賽事的統計數據 |
+
+### 3. 預設值與時間戳
+- 自動生成 `created_at`/`updated_at` 時間戳，便於數據審計
+- `event_id` 預設為 `default`，支援單一賽事場景
+- `is_required` 預設為 `TRUE`，確保起點/終點為必經檢查點
+- 統計數據預設值為 0，避免空值處理問題
+
+---
+
+## 系統核心功能（資料庫驅動）
+### 1. 參賽者管理
+- **匯入**：透過 CSV 批量匯入參賽者（格式：bib_number, name）
+- **CRUD 操作**：建立/查詢/更新/刪除參賽者紀錄
+- **唯一性驗證**：參賽號碼唯一約束防止重複
+
+### 2. 打卡追蹤
+- **即時更新**：透過 Supabase Realtime 訂閱，新增打卡紀錄時前端自動更新
+- **用時計算**：基於起點/終點打卡時間計算完賽用時
+- **多維度篩選**：可按檢查點、參賽號碼、時間範圍查詢打卡紀錄
+
+### 3. 排名與統計
+- **多種排名模式**：
+  - 槍時（按終點到達時間）
+  - 晶片時（按實際用時）
+  - 分段成績（按各檢查點用時）
+- **儀表板指標**：
+  - 總參賽人數、已出發人數、已完賽人數
+  - 平均完賽時間
+  - 賽事進度視覺化（Chart.js 圓環圖）
+- **統計快取**：`race_stats` 表格儲存計算結果，減少前端即時計算壓力
+
+### 4. 數據匯入/匯出
+- **CSV 匯出**：匯出所有賽事數據（總覽、排名、打卡紀錄）
+- **CSV 匯入**：批量匯入參賽者
+- **數據清空**：管理員專用批量刪除功能（雙重確認防止誤操作）
+
+---
+
+## 技術要求
+### 1. Supabase 設定
+- 建立 Supabase 專案（免費方案可用）
+- 執行上述 DDL 語句建立表格與索引
+- 啟用 `checkins`、`participants`、`race_stats`、`checkpoint_configs` 的即時功能
+- 取得 Supabase URL 與 anon key 用於前端連接
+
+### 2. 權限建議
+- **開發環境**：匿名角色給予完整 CRUD 權限（如範例所示）
+- **生產環境**：啟用列級安全性（RLS），限制匿名角色僅可讀取，管理員需驗證後操作
+
+### 3. 最佳實踐
+- **備份**：啟用 Supabase 自動備份功能
+- **效能優化**：大數據量（1000+ 跑手）時確保索引全部建立
+- **擴展性**：透過 `event_id` 欄位實現多賽事數據隔離
+- **清理策略**：新增定時腳本清理舊賽事數據（按需設定）
+
+此架構適用於中小型賽事（100-1000 名跑手），針對大型賽事可額外增加索引、分表或快取機制進一步優化。
+
 NFC 跑手計時系統 (NFC Race Timing System)
 一個基於網頁的全方位賽事計時與管理系統，採用 NFC 技術追蹤參賽者打卡記錄，後端依託 Supabase (PostgreSQL) 進行數據儲存與即時更新，透過 Chart.js 實現數據視覺化，並以原生 JavaScript 開發前端介面，專為賽事籌辦方設計。
 📋 專案概述
