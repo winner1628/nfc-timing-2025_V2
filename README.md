@@ -1,6 +1,6 @@
 # nfc-timing-2025_V2
 
-[project](https://github.com/winner1628/nfc-timing-2025_V2)
+https://github.com/winner1628/nfc-timing-2025_V2
 <img width="230" height="230" alt="qrcode" src="https://github.com/user-attachments/assets/5eeb6420-943c-4c51-885c-ab35460f11ae" />
 
 https://winner1628.github.io/nfc-timing-2025_V2/timing-adminv2.html
