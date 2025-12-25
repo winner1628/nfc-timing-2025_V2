@@ -20,24 +20,26 @@
     button { padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     button:hover { background: #2563eb; }
     .controls { margin: 20px 0; }
-    .mode-toggle { display: inline-block; margin-right: 20px; font-size: 18px; font-weight: bold; }
-    .mode-btn { padding: 8px 16px; margin: 0 4px; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; }
-    .active { background: #10b981; color: white; }
+    .mode-toggle { display: inline-block; margin-right: 20px; font-size: 18px; font-weight: bold; color: #000000; }
+    .mode-btn { padding: 8px 16px; margin: 0 4px; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; color: #000000; }
+    .mode-btn.active { background: #10b981; color: white; }
     table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    th, td { padding: 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-    th { background: #f1f5f9; font-weight: bold; }
-    .gold { background: #fef3c7; } .silver { background: #e0f2fe; } .bronze { background: #fed7aa; }
+    th, td { padding: 16px; text-align: left; border-bottom: 1px solid #e2e8f0; color: #000000 !important; }
+    th { background: #f1f5f9; font-weight: bold; color: #000000 !important; }
+    .gold { background: #fef3c7; color: #000000 !important; } 
+    .silver { background: #e0f2fe; color: #000000 !important; } 
+    .bronze { background: #fed7aa; color: #000000 !important; }
     #log { background: #f8f9fa; padding: 20px; border-radius: 12px; max-height: 200px; overflow-y: auto; font-family: monospace; color: #000000; }
     .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
     .stat-card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
-    .stat-number { font-size: 36px; font-weight: bold; color: #3b82f6; }
-    .stat-label { color: #000000; margin-top: 8px; font-weight: 500; }
-    .chart-container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 24px; width: 25%; margin-left: auto; margin-right: auto; }
+    .stat-number { font-size: 36px; font-weight: bold; color: #000000; }
+    .stat-label { color: #000000; margin-top: 8px; font-weight: 500; font-size: 18px; }
+    .chart-container { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 24px; width: 50%; margin-left: auto; margin-right: auto; }
     
     /* 导航样式 */
     .navigation { margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
-    .nav-btn { padding: 8px 16px; margin-right: 10px; background: #f1f5f9; color: #000000; font-weight: 500; }
-    .nav-btn.active { background: #3b82f6; color: white; }
+    .nav-btn { padding: 8px 16px; margin-right: 10px; background: #f1f5f9; color: #000000 !important; font-weight: 700; font-size: 16px; }
+    .nav-btn.active { background: #3b82f6; color: white !important; }
     
     /* 页面容器样式 */
     .page { display: none; }
@@ -45,7 +47,14 @@
     
     /* 筛选器样式 */
     .filters { margin: 16px 0; padding: 16px; background: #f8fafc; border-radius: 8px; }
-    select, .filter-input { padding: 8px 12px; margin-right: 12px; border: 1px solid #e2e8f0; border-radius: 4px; }
+    select, .filter-input { padding: 8px 12px; margin-right: 12px; border: 1px solid #e2e8f0; border-radius: 4px; color: #000000; }
+    
+    /* 页面标题样式 */
+    h1, h2, h3 { color: #000000 !important; }
+    
+    /* 模态框文字颜色 */
+    #manageUsersModal { color: #000000 !important; }
+    #manageUsersModal h2, #manageUsersModal h3, #manageUsersModal p { color: #000000 !important; }
   </style>
 </head>
 <body>
@@ -60,7 +69,7 @@
         <button onclick="showManageUsersModal()" style="background: #6366f1; float: right; margin-left: 8px;">👥 管理參賽者</button>
         <button onclick="clearAllData()" style="background: #ef4444; float: right;">🗑️ 清空數據</button>
       </div>
-      <div id="status" style="margin-top: 12px; padding: 8px; border-radius: 8px; font-weight: bold;">未連線</div>
+      <div id="status" style="margin-top: 12px; padding: 8px; border-radius: 8px; font-weight: bold; color: #000000;">未連線</div>
     </div>
     
     <!-- 页面导航 -->
@@ -181,7 +190,7 @@
 
   <!-- 管理參賽者模態框 -->
   <div id="manageUsersModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-    <div style="background: white; border-radius: 16px; padding: 32px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto;">
+    <div style="background: white; border-radius: 16px; padding: 32px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; color: #000000;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h2>👥 管理參賽者</h2>
         <button onclick="hideManageUsersModal()" style="background: #64748b; padding: 8px 16px;">✕ 關閉</button>
@@ -190,10 +199,10 @@
       <!-- 检查点配置 -->
       <div style="margin-bottom: 24px; padding: 20px; background: #f8fafc; border-radius: 12px;">
         <h3>🚩 检查点配置</h3>
-        <p style="margin-bottom: 16px;">设置本次比赛的检查点（最少2个，最多10个）</p>
+        <p style="margin-bottom: 16px; color: #000000;">设置本次比赛的检查点（最少2个，最多10个）</p>
         
         <div style="margin-bottom: 16px;">
-          <label>检查点数量：</label>
+          <label style="color: #000000;">检查点数量：</label>
           <input type="number" id="checkpointCount" min="2" max="10" value="2" style="width: 80px;">
           <button onclick="updateCheckpointFields()" style="background: #3b82f6;">更新数量</button>
         </div>
@@ -203,13 +212,13 @@
             <input placeholder="代码（如START）" style="width: 120px;" value="START">
             <input placeholder="名称（如起点）" style="flex: 1;" value="起点">
             <input type="number" placeholder="顺序" style="width: 80px;" value="1">
-            <label style="margin-top: 12px;">必过: <input type="checkbox" checked></label>
+            <label style="margin-top: 12px; color: #000000;">必过: <input type="checkbox" checked></label>
           </div>
           <div class="checkpoint-field" style="display: flex; gap: 12px; margin-bottom: 8px;">
             <input placeholder="代码（如FINISH）" style="width: 120px;" value="FINISH">
             <input placeholder="名称（如终点）" style="flex: 1;" value="终点">
             <input type="number" placeholder="顺序" style="width: 80px;" value="2">
-            <label style="margin-top: 12px;">必过: <input type="checkbox" checked></label>
+            <label style="margin-top: 12px; color: #000000;">必过: <input type="checkbox" checked></label>
           </div>
         </div>
         
@@ -219,10 +228,10 @@
       <!-- CSV 導入功能 -->
       <div style="margin-bottom: 24px; padding: 20px; background: #f8fafc; border-radius: 12px;">
         <h3>📁 從 CSV 導入參賽者</h3>
-        <p style="color: #64748b; margin-bottom: 16px;">CSV 格式：號碼,姓名（例如：001,張三）</p>
+        <p style="color: #000000; margin-bottom: 16px;">CSV 格式：號碼,姓名（例如：001,張三）</p>
         <input type="file" id="csvFileInput" accept=".csv" style="margin-bottom: 16px;">
         <button onclick="importFromCSV()" style="background: #22c55e;">📥 導入 CSV</button>
-        <div id="csvImportStatus" style="margin-top: 16px; font-family: monospace;"></div>
+        <div id="csvImportStatus" style="margin-top: 16px; font-family: monospace; color: #000000;"></div>
       </div>
       
       <!-- 手動添加參賽者 -->
@@ -242,9 +251,9 @@
           <table id="participantsTable" style="width: 100%; border-radius: 8px;">
             <thead>
               <tr>
-                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; background: #f1f5f9;">號碼</th>
-                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; background: #f1f5f9;">姓名</th>
-                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #e2e8f0; background: #f1f5f9;">操作</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; background: #f1f5f9; color: #000000;">號碼</th>
+                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; background: #f1f5f9; color: #000000;">姓名</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #e2e8f0; background: #f1f5f9; color: #000000;">操作</th>
               </tr>
             </thead>
             <tbody id="participantsTableBody">
@@ -261,6 +270,7 @@
     let progressChart = null;
     let checkpoints = [];
     let allCheckins = [];
+    let autoRefreshInterval = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       const savedUrl = localStorage.getItem('nfc_admin_url');
@@ -301,7 +311,7 @@
           <input placeholder="代码" style="width: 120px;" value="${code}">
           <input placeholder="名称" style="flex: 1;" value="${name}">
           <input type="number" placeholder="顺序" style="width: 80px;" value="${i}">
-          <label style="margin-top: 12px;">必过: <input type="checkbox" ${i === 1 || i === count ? 'checked' : ''}></label>
+          <label style="margin-top: 12px; color: #000000;">必过: <input type="checkbox" ${i === 1 || i === count ? 'checked' : ''}></label>
         `;
         container.appendChild(field);
       }
@@ -435,6 +445,10 @@
 
         // 设置实时监听
         setupRealtimeUpdates();
+        
+        // 设置自动刷新（每5秒）
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(refreshData, 5000);
 
       } catch (e) {
         console.error('连接错误:', e);
@@ -458,6 +472,30 @@
             refreshData();
           }
         )
+        .on(
+          'postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'checkins' },
+          () => {
+            logMessage(`📤 打卡記錄已刪除`);
+            refreshData();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'participants' },
+          () => {
+            logMessage(`👤 新參賽者已添加`);
+            refreshData();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'participants' },
+          () => {
+            logMessage(`👤 參賽者已刪除`);
+            refreshData();
+          }
+        )
         .subscribe();
     }
 
@@ -478,61 +516,92 @@
     async function loadDashboardStats() {
       try {
         // 1. 总参赛人数
-        const { count: totalRunners } = await adminClient
+        const totalRunnersResult = await adminClient
           .from('participants')
           .select('*', { count: 'exact', head: true });
+        const totalRunners = totalRunnersResult.count || 0;
         
-        // 2. 已出发人数
-        const { count: startedRunners } = await adminClient
+        // 2. 已出发人数 - 修复查询逻辑
+        const startCheckinsResult = await adminClient
           .from('checkins')
-          .select('DISTINCT bib_number', { count: 'exact', head: true })
-          .eq('checkpoint', 'START');
+          .select('bib_number', { count: 'exact', head: true })
+          .eq('checkpoint', 'START')
+          .distinct('bib_number');
+        const startedRunners = startCheckinsResult.count || 0;
         
-        // 3. 已完赛人数
-        const { count: finishedRunners } = await adminClient
+        // 3. 已完赛人数 - 修复查询逻辑
+        const finishCheckinsResult = await adminClient
           .from('checkins')
-          .select('DISTINCT bib_number', { count: 'exact', head: true })
-          .eq('checkpoint', 'FINISH');
+          .select('bib_number', { count: 'exact', head: true })
+          .eq('checkpoint', 'FINISH')
+          .distinct('bib_number');
+        const finishedRunners = finishCheckinsResult.count || 0;
         
-        // 4. 平均完赛时间
+        // 4. 平均完赛时间 - 重写逻辑
         let avgTime = '00:00';
         if (finishedRunners > 0) {
-          const { data: finishTimes } = await adminClient
+          // 获取所有完赛选手的起点和终点时间
+          const { data: finishers } = await adminClient
             .from('checkins')
             .select(`
               bib_number,
-              time,
-              start_time:checkins!checkins_bib_number_fkey (
+              time as finish_time,
+              start_time:checkins (
                 time
               )
             `)
-            .eq('checkpoint', 'FINISH')
-            .eq('checkins.checkpoint', 'START');
+            .eq('checkpoint', 'FINISH');
           
-          if (finishTimes && finishTimes.length > 0) {
-            const totalSeconds = finishTimes.reduce((sum, entry) => {
-              if (!entry.start_time || !entry.start_time.time) return sum;
-              const start = new Date(entry.start_time.time).getTime();
-              const finish = new Date(entry.time).getTime();
-              return sum + (finish - start) / 1000;
-            }, 0);
+          if (finishers && finishers.length > 0) {
+            let totalSeconds = 0;
+            let validFinishers = 0;
             
-            const avgSeconds = totalSeconds / finishTimes.length;
-            avgTime = formatTime(avgSeconds);
+            for (const finisher of finishers) {
+              // 获取该选手的起点记录
+              const { data: startRecord } = await adminClient
+                .from('checkins')
+                .select('time')
+                .eq('bib_number', finisher.bib_number)
+                .eq('checkpoint', 'START')
+                .single();
+              
+              if (startRecord && finisher.finish_time) {
+                const start = new Date(startRecord.time).getTime();
+                const finish = new Date(finisher.finish_time).getTime();
+                const duration = (finish - start) / 1000;
+                
+                if (duration > 0) {
+                  totalSeconds += duration;
+                  validFinishers++;
+                }
+              }
+            }
+            
+            if (validFinishers > 0) {
+              const avgSeconds = totalSeconds / validFinishers;
+              avgTime = formatTime(avgSeconds);
+            }
           }
         }
         
-        // 更新UI
-        document.getElementById('totalRunners').textContent = totalRunners || 0;
-        document.getElementById('startedRunners').textContent = startedRunners || 0;
-        document.getElementById('finishedRunners').textContent = finishedRunners || 0;
+        // 更新UI - 确保数值显示
+        document.getElementById('totalRunners').textContent = totalRunners;
+        document.getElementById('startedRunners').textContent = startedRunners;
+        document.getElementById('finishedRunners').textContent = finishedRunners;
         document.getElementById('avgTime').textContent = avgTime;
         
         // 更新图表
-        updateProgressChart(totalRunners || 0, startedRunners || 0, finishedRunners || 0);
+        updateProgressChart(totalRunners, startedRunners, finishedRunners);
+        
       } catch (error) {
         console.error('加载统计数据失败:', error);
         logMessage(`❌ 加载统计数据失败: ${error.message}`);
+        
+        // 即使出错也显示基础数值
+        document.getElementById('totalRunners').textContent = '0';
+        document.getElementById('startedRunners').textContent = '0';
+        document.getElementById('finishedRunners').textContent = '0';
+        document.getElementById('avgTime').textContent = '00:00';
       }
     }
 
@@ -543,24 +612,48 @@
         progressChart.destroy();
       }
       
+      // 确保数值不为负
+      const notStarted = Math.max(0, total - started);
+      const inProgress = Math.max(0, started - finished);
+      
       progressChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
           labels: ['未开始', '已出发', '已完赛'],
           datasets: [{
-            data: [
-              Math.max(0, total - started),
-              Math.max(0, started - finished),
-              finished
-            ],
-            backgroundColor: ['#94a3b8', '#3b82f6', '#10b981']
+            data: [notStarted, inProgress, finished],
+            backgroundColor: ['#94a3b8', '#3b82f6', '#10b981'],
+            borderColor: '#ffffff',
+            borderWidth: 2
           }]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom' }
-          }
+            legend: { 
+              position: 'bottom',
+              labels: {
+                color: '#000000',
+                font: {
+                  size: 14,
+                  weight: 'bold'
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} 人 (${percentage}%)`;
+                }
+              }
+            }
+          },
+          cutout: '60%'
         }
       });
     }
@@ -571,12 +664,20 @@
           .from('participants')
           .select('bib_number, name');
         
+        if (!participants || participants.length === 0) {
+          const tableBody = document.getElementById('resultsTable').querySelector('tbody');
+          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#000000;">暂无参赛数据</td></tr>';
+          return;
+        }
+        
+        // 获取所有起点记录
         const { data: startCheckins } = await adminClient
           .from('checkins')
           .select('bib_number, time')
           .eq('checkpoint', 'START')
           .order('time');
         
+        // 获取所有终点记录
         const { data: finishCheckins } = await adminClient
           .from('checkins')
           .select('bib_number, time')
@@ -585,8 +686,8 @@
         
         // 合并数据
         const results = participants.map(participant => {
-          const start = startCheckins.find(c => c.bib_number === participant.bib_number);
-          const finish = finishCheckins.find(c => c.bib_number === participant.bib_number);
+          const start = startCheckins ? startCheckins.find(c => c.bib_number === participant.bib_number) : null;
+          const finish = finishCheckins ? finishCheckins.find(c => c.bib_number === participant.bib_number) : null;
           
           return {
             bib_number: participant.bib_number,
@@ -597,36 +698,65 @@
               ? (new Date(finish.time).getTime() - new Date(start.time).getTime()) / 1000 
               : null
           };
-        }).filter(r => r.start_time);
+        }).filter(r => r.start_time); // 只显示已出发的选手
         
         // 排序
         if (rankingMode === 'gun') {
-          results.sort((a, b) => a.finish_time ? (b.finish_time ? new Date(a.finish_time) - new Date(b.finish_time) : -1) : 1);
+          results.sort((a, b) => {
+            if (a.finish_time && b.finish_time) {
+              return new Date(a.finish_time) - new Date(b.finish_time);
+            } else if (a.finish_time) {
+              return -1;
+            } else if (b.finish_time) {
+              return 1;
+            } else {
+              return new Date(a.start_time) - new Date(b.start_time);
+            }
+          });
         } else {
-          results.sort((a, b) => a.duration ? (b.duration ? a.duration - b.duration : -1) : 1);
+          results.sort((a, b) => {
+            if (a.duration && b.duration) {
+              return a.duration - b.duration;
+            } else if (a.duration) {
+              return -1;
+            } else if (b.duration) {
+              return 1;
+            } else {
+              return new Date(a.start_time) - new Date(b.start_time);
+            }
+          });
         }
         
         // 更新表格
         const tableBody = document.getElementById('resultsTable').querySelector('tbody');
         tableBody.innerHTML = '';
         
+        if (results.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#000000;">暂无出发记录</td></tr>';
+          return;
+        }
+        
         results.forEach((result, index) => {
           const row = document.createElement('tr');
-          if (index < 3) row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+          if (index < 3) {
+            row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+          }
           
           row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${result.bib_number}</td>
-            <td>${result.name}</td>
-            <td>${result.start_time ? new Date(result.start_time).toLocaleTimeString() : '-'}</td>
-            <td>${result.finish_time ? new Date(result.finish_time).toLocaleTimeString() : '-'}</td>
-            <td>${result.duration ? formatTime(result.duration) : '-'}</td>
+            <td style="color:#000000;">${index + 1}</td>
+            <td style="color:#000000;">${result.bib_number}</td>
+            <td style="color:#000000;">${result.name}</td>
+            <td style="color:#000000;">${result.start_time ? new Date(result.start_time).toLocaleTimeString() : '-'}</td>
+            <td style="color:#000000;">${result.finish_time ? new Date(result.finish_time).toLocaleTimeString() : '-'}</td>
+            <td style="color:#000000;">${result.duration ? formatTime(result.duration) : '-'}</td>
           `;
           tableBody.appendChild(row);
         });
       } catch (error) {
         console.error('加载结果失败:', error);
         logMessage(`❌ 加载结果失败: ${error.message}`);
+        const tableBody = document.getElementById('resultsTable').querySelector('tbody');
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#000000;">加载数据失败: ${error.message}</td></tr>`;
       }
     }
 
@@ -637,6 +767,12 @@
         const { data: participants } = await adminClient
           .from('participants')
           .select('bib_number, name');
+        
+        if (!participants || participants.length === 0) {
+          const tableBody = document.getElementById('detailedRankingTable').querySelector('tbody');
+          tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#000000;">暂无参赛数据</td></tr>';
+          return;
+        }
         
         const { data: checkins } = await adminClient
           .from('checkins')
@@ -685,9 +821,16 @@
         const tableBody = document.getElementById('detailedRankingTable').querySelector('tbody');
         tableBody.innerHTML = '';
         
+        if (rankedRunners.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#000000;">暂无完赛记录</td></tr>';
+          return;
+        }
+        
         rankedRunners.forEach((runner, index) => {
           const row = document.createElement('tr');
-          if (index < 3) row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+          if (index < 3) {
+            row.className = index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze';
+          }
           
           // 格式化检查点时间
           const checkpointTimes = checkpoints.map(cp => {
@@ -696,17 +839,19 @@
           }).join('<br>');
           
           row.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${runner.bib_number}</td>
-            <td>${runner.name}</td>
-            <td>${checkpointTimes}</td>
-            <td>${runner.total_time ? formatTime(runner.total_time) : '-'}</td>
+            <td style="color:#000000;">${index + 1}</td>
+            <td style="color:#000000;">${runner.bib_number}</td>
+            <td style="color:#000000;">${runner.name}</td>
+            <td style="color:#000000;">${checkpointTimes}</td>
+            <td style="color:#000000;">${runner.total_time ? formatTime(runner.total_time) : '-'}</td>
           `;
           tableBody.appendChild(row);
         });
       } catch (error) {
         console.error('加载排名数据失败:', error);
         logMessage(`❌ 加载排名数据失败: ${error.message}`);
+        const tableBody = document.getElementById('detailedRankingTable').querySelector('tbody');
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#000000;">加载数据失败: ${error.message}</td></tr>`;
       }
     }
 
@@ -729,6 +874,8 @@
       } catch (error) {
         console.error('加载打卡数据失败:', error);
         logMessage(`❌ 加载打卡数据失败: ${error.message}`);
+        const tableBody = document.getElementById('checkinsTable').querySelector('tbody');
+        tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#000000;">加载数据失败: ${error.message}</td></tr>`;
       }
     }
 
@@ -745,13 +892,18 @@
       const tableBody = document.getElementById('checkinsTable').querySelector('tbody');
       tableBody.innerHTML = '';
       
+      if (filtered.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#000000;">暂无打卡记录</td></tr>';
+        return;
+      }
+      
       filtered.forEach(checkin => {
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${new Date(checkin.time).toLocaleString()}</td>
-          <td>${checkin.bib_number}</td>
-          <td>${checkin.participants?.name || '未知'}</td>
-          <td>${checkin.checkpoint}</td>
+          <td style="color:#000000;">${new Date(checkin.time).toLocaleString()}</td>
+          <td style="color:#000000;">${checkin.bib_number}</td>
+          <td style="color:#000000;">${checkin.participants?.name || '未知'}</td>
+          <td style="color:#000000;">${checkin.checkpoint}</td>
         `;
         tableBody.appendChild(row);
       });
@@ -769,14 +921,19 @@
         const tableBody = document.getElementById('participantsTableBody');
         tableBody.innerHTML = '';
         
+        if (!data || data.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#000000;">暂无参赛选手</td></tr>';
+          return;
+        }
+        
         data.forEach(participant => {
           const row = document.createElement('tr');
           row.innerHTML = `
-            <td>${participant.bib_number}</td>
-            <td>${participant.name}</td>
-            <td>
-              <button onclick="editParticipant('${participant.bib_number}', '${participant.name}')" style="padding: 4px 8px; background: #3b82f6;">編輯</button>
-              <button onclick="deleteParticipant('${participant.bib_number}')" style="padding: 4px 8px; background: #ef4444;">刪除</button>
+            <td style="color:#000000;">${participant.bib_number}</td>
+            <td style="color:#000000;">${participant.name}</td>
+            <td style="text-align:center; color:#000000;">
+              <button onclick="editParticipant('${participant.bib_number}', '${participant.name}')" style="padding: 4px 8px; background: #3b82f6; color:white;">編輯</button>
+              <button onclick="deleteParticipant('${participant.bib_number}')" style="padding: 4px 8px; background: #ef4444; color:white;">刪除</button>
             </td>
           `;
           tableBody.appendChild(row);
@@ -784,6 +941,8 @@
       } catch (error) {
         console.error('加载参赛者失败:', error);
         logMessage(`❌ 加载参赛者失败: ${error.message}`);
+        const tableBody = document.getElementById('participantsTableBody');
+        tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#000000;">加载失败: ${error.message}</td></tr>`;
       }
     }
 
@@ -807,6 +966,7 @@
             document.getElementById('manualBibNumber').value = '';
             document.getElementById('manualName').value = '';
             loadParticipants();
+            refreshData();
           }
         });
     }
@@ -821,7 +981,10 @@
         .eq('bib_number', bib)
         .then(({ error }) => {
           if (error) alert('修改失敗: ' + error.message);
-          else loadParticipants();
+          else {
+            loadParticipants();
+            refreshData();
+          }
         });
     }
 
@@ -852,6 +1015,7 @@
         // 刷新数据
         loadParticipants();
         refreshData();
+        alert('刪除成功');
         
       } catch (error) {
         alert('删除失败: ' + error.message);
@@ -899,6 +1063,7 @@
               alert(`成功導入 ${participants.length} 名參賽者`);
               logMessage(`✅ 成功導入 ${participants.length} 名參賽者`);
               loadParticipants();
+              refreshData();
               input.value = '';
             }
           });
@@ -953,21 +1118,21 @@
       }
       
       try {
-        // 先删除打卡记录（使用事件ID过滤）
+        // 先删除所有打卡记录
         const { error: checkinsError } = await adminClient
           .from('checkins')
           .delete()
-          .neq('bib_number', 'nonexistent_value'); // 这是一个技巧，匹配所有记录但满足WHERE子句要求
+          .gte('id', 0); // 使用有效的WHERE条件删除所有记录
           
         if (checkinsError) {
           throw new Error(`清空打卡記錄失敗: ${checkinsError.message}`);
         }
         
-        // 再删除参赛者
+        // 再删除所有参赛者
         const { error: participantsError } = await adminClient
           .from('participants')
           .delete()
-          .neq('bib_number', 'nonexistent_value'); // 同上
+          .gte('id', 0); // 使用有效的WHERE条件删除所有记录
         
         if (participantsError) {
           throw new Error(`清空參賽者失敗: ${participantsError.message}`);
@@ -1003,6 +1168,7 @@
       const timestamp = new Date().toLocaleTimeString('zh-HK');
       const logEntry = document.createElement('div');
       logEntry.textContent = `[${timestamp}] ${message}`;
+      logEntry.style.color = '#000000';
       logElement.appendChild(logEntry);
       logElement.scrollTop = logElement.scrollHeight;
     }
@@ -1013,6 +1179,11 @@
       const s = Math.floor(seconds % 60);
       return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
+    
+    // 页面关闭时清除自动刷新
+    window.addEventListener('beforeunload', () => {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    });
   </script>
 </body>
 </html>
